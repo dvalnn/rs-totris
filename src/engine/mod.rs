@@ -38,7 +38,7 @@ impl Engine {
     }
 }
 
-struct Board([bool; Board::SIZE]);
+pub struct Board([bool; Board::SIZE]);
 
 impl Board {
     const WIDTH: usize = 10;
@@ -47,5 +47,9 @@ impl Board {
 
     fn new() -> Self {
         Self([false; Self::SIZE])
+    }
+
+    pub fn in_bounds(Coordinate { x, y }: Coordinate) -> bool {
+        x < Self::WIDTH && y < Self::HEIGHT
     }
 }
