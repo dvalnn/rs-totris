@@ -33,8 +33,21 @@ impl Engine {
     }
 
     fn place_cursor(&mut self) {
-        // debug assert that the cursor does not overlap with the board
-        todo!();
+        let cursor = self
+            .cursor
+            .take()
+            .expect("Place cursor called without cursor");
+
+        for coords in cursor.cells().expect("cursor out of bounds") {
+            let cell = self
+                .board
+                .get_mut(coords)
+                .expect("cursor out of bounds ?!?!?!");
+
+            // NOTE: The calling code should ensure this never happens
+            debug_assert!(!(*cell));
+            *cell = true;
+        }
     }
 }
 
@@ -49,7 +62,16 @@ impl Board {
         Self([false; Self::SIZE])
     }
 
+    const fn index(Coordinate { x, y }: Coordinate) -> usize {
+        x + y * Self::WIDTH
+    }
+
     pub fn in_bounds(Coordinate { x, y }: Coordinate) -> bool {
         x < Self::WIDTH && y < Self::HEIGHT
+    }
+
+    pub fn get_mut(&mut self, coordinate: Coordinate) -> Option<&mut bool> {
+        Self::in_bounds(coordinate)
+            .then(|| &mut self.0[Self::index(coordinate)])
     }
 }
