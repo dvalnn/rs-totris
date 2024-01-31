@@ -3,7 +3,7 @@ use cgmath::{EuclideanSpace, Zero};
 
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Rotation { N, E, S, W }
+pub(super) enum Rotation { N, E, S, W }
 
 impl Rotation {
     fn i_offset(&self) -> Offset {
@@ -31,7 +31,7 @@ impl std::ops::Mul<Rotation> for Offset {
 
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Kind { I, O, T, S, Z, J, L }
+pub(super) enum Kind { I, O, T, S, Z, J, L }
 
 impl Kind {
     const KIND_COUNT: usize = 7;
@@ -86,7 +86,7 @@ impl Piece {
 
 //NOTE: Public functions impl block
 impl Piece {
-    pub fn new(kind: Kind) -> Self {
+    pub(super) fn new(kind: Kind) -> Self {
         Piece {
             kind,
             position: Offset::new(0, 0),
@@ -94,7 +94,7 @@ impl Piece {
         }
     }
 
-    pub fn moved_by(&self, offset: Offset) -> Self {
+    pub(super) fn moved_by(&self, offset: Offset) -> Self {
         Self {
             position: self.position + offset,
             ..*self
@@ -103,7 +103,7 @@ impl Piece {
 
     /// Returns the cells of this [`Piece`].
     /// If the piece is out of bounds, `None` is returned.
-    pub fn cells(&self) -> Option<Vec<Coordinate>> {
+    pub(super) fn cells(&self) -> Option<Vec<Coordinate>> {
         self.kind
             .cells()
             .map(self.rotator())
