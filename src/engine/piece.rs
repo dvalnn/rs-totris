@@ -1,9 +1,20 @@
-use super::{Board, Coordinate, Offset};
-use anyhow::{Context, Error, Result};
+use super::{Coordinate, Matrix, Offset};
+use cgmath::{EuclideanSpace, Zero};
 
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Rotation { N, E, S, W }
+
+impl Rotation {
+    fn i_offset(&self) -> Offset {
+        match self {
+            Rotation::N => Offset::zero(),
+            Rotation::E => Offset::new(1, 0),
+            Rotation::S => Offset::new(1, -1),
+            Rotation::W => Offset::new(0, -1),
+        }
+    }
+}
 
 impl std::ops::Mul<Rotation> for Offset {
     type Output = Self;
@@ -44,7 +55,7 @@ impl Kind {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct Piece {
     pub kind: Kind,
     pub position: Offset,
@@ -56,31 +67,19 @@ impl Piece {
     const CELL_COUNT: usize = 4;
 
     fn rotator(&self) -> impl Fn(Offset) -> Offset + '_ {
-        move |cell| match self.kind {
-            Kind::O => cell,
-            //TODO: implement I piece specific rotation
-            // Kind::I => todo!(),
-            _ => cell * self.rotation,
+        move |offset| match self.kind {
+            Kind::O => offset,
+            Kind::I => offset * self.rotation + self.rotation.i_offset(),
+            _ => offset * self.rotation,
         }
     }
 
-    fn positioner(&self) -> impl Fn(Offset) -> Result<Coordinate> + '_ {
-        move |cell| {
-            let cell = cell + self.position;
-            Ok::<Coordinate, Error>(Coordinate::new(
-                usize::try_from(cell.x)?,
-                usize::try_from(cell.y)?,
-            ))
-            .context("Piece is out of bounds (underflow)")
-        }
-    }
-
-    fn board_bounds_checker(
-        &self,
-    ) -> impl Fn(Coordinate) -> Result<Coordinate> + '_ {
-        move |cell| match Board::in_bounds(cell) {
-            true => Ok(cell),
-            false => Err(Error::msg("Piece is out of bounds (overflow)")),
+    fn positioner(&self) -> impl Fn(Offset) -> Option<Coordinate> + '_ {
+        move |offset| {
+            let cell = offset + self.position;
+            let positive_offset = cell.cast::<usize>()?;
+            let coord = Coordinate::from_vec(positive_offset);
+            Matrix::valid_coord(coord).then_some(coord)
         }
     }
 }
@@ -95,16 +94,22 @@ impl Piece {
         }
     }
 
-    pub fn cells(&self) -> Result<Vec<Coordinate>> {
+    pub fn moved_by(&self, offset: Offset) -> Self {
+        Self {
+            position: self.position + offset,
+            ..*self
+        }
+    }
+
+    /// Returns the cells of this [`Piece`].
+    /// If the piece is out of bounds, `None` is returned.
+    pub fn cells(&self) -> Option<Vec<Coordinate>> {
         self.kind
             .cells()
             .map(self.rotator())
             .map(self.positioner())
             .into_iter()
-            .collect::<Result<Vec<_>>>()?
-            .into_iter()
-            .map(self.board_bounds_checker())
-            .collect::<Result<Vec<_>>>()
+            .collect::<Option<Vec<_>>>()
     }
 }
 
@@ -137,6 +142,7 @@ mod test {
     }
 
     #[rstest]
+    //NOTE: case 1
     #[case(
         Piece{
             kind: Kind::Z,
@@ -150,6 +156,7 @@ mod test {
             Coordinate::new(5, 7)
         ]
     )]
+    //NOTE: case 2
     #[case(
         Piece{
             kind: Kind::L,
@@ -161,6 +168,62 @@ mod test {
             Coordinate::new(8, 2),
             Coordinate::new(7, 2),
             Coordinate::new(7, 1),
+        ]
+    )]
+    //NOTE: case 3
+    #[case(
+        Piece{
+            kind: Kind::I,
+            position: Offset::new(5,5),
+            rotation: Rotation::N
+        },
+        vec![
+            Coordinate::new(4,5),
+            Coordinate::new(5,5),
+            Coordinate::new(6,5),
+            Coordinate::new(7,5),
+        ]
+    )]
+    //NOTE: case 4
+    #[case(
+        Piece{
+            kind: Kind::I,
+            position: Offset::new(5,5),
+            rotation: Rotation::E
+        },
+        vec![
+            Coordinate::new(6,6),
+            Coordinate::new(6,5),
+            Coordinate::new(6,4),
+            Coordinate::new(6,3),
+        ]
+    )]
+    //NOTE: case 5
+    #[case(
+        Piece{
+            kind: Kind::I,
+            position: Offset::new(5,5),
+            rotation: Rotation::S
+        },
+        vec![
+            Coordinate::new(7,4),
+            Coordinate::new(6,4),
+            Coordinate::new(5,4),
+            Coordinate::new(4,4),
+        ]
+    )]
+    //NOTE: case 6
+    #[case(
+        Piece{
+            kind: Kind::I,
+            position: Offset::new(5,5),
+            rotation: Rotation::W
+        },
+        vec![
+            Coordinate::new(5,3),
+            Coordinate::new(5,4),
+            Coordinate::new(5,5),
+            Coordinate::new(5,6),
         ]
     )]
     fn test_positioning(
