@@ -4,10 +4,9 @@ mod engine;
 mod interface;
 
 use engine::Engine;
-use interface::Interface;
 
 fn main() {
     println!("Hello, world!");
-    let engine = Engine::new(); 
-    Interface::run(engine);
+    let engine = Engine::new();
+    interface::run(engine);
 }
