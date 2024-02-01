@@ -1,8 +1,13 @@
+mod geometry;
 mod matrix;
 mod piece;
 
-use matrix::Matrix;
+use cgmath::EuclideanSpace;
+
+use matrix::CellIter;
 use piece::{Kind as PieceKind, Piece};
+
+pub use matrix::Matrix;
 
 type Coordinate = cgmath::Point2<usize>;
 type Offset = cgmath::Vector2<isize>;
@@ -84,9 +89,9 @@ impl Engine {
         };
 
         let new_cursor = cursor.moved_by(kind.offset());
-        let Some(cells) = new_cursor.cells() else {
+        if new_cursor.cells().is_none() {
             return Err(());
-        };
+        }
 
         if self.matrix.is_clipping(&new_cursor) {
             return Err(());
@@ -108,5 +113,12 @@ impl Engine {
             self.cursor = Some(new_cursor);
         }
         self.place_cursor()
+    }
+
+    pub fn cells(&self) -> CellIter<'_> {
+        CellIter {
+            position: Coordinate::origin(),
+            cells: self.matrix.0.iter(),
+        }
     }
 }
