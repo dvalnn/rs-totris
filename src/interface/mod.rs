@@ -1,4 +1,4 @@
-use cgmath::Vector2;
+use cgmath::{ElementWise, EuclideanSpace, Vector2};
 use sdl2::{
     event::Event, pixels::Color, rect::Rect, render::Canvas, video::Window,
 };
@@ -139,29 +139,37 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
     canvas.fill_rect(score).expect("Fatal redering error");
 
     let origin = matrix.bottom_left();
-    let (m_width, m_heigth) = matrix.size();
+    let matrix_dims = Vector2::from(matrix.size());
+    let matrix_cells =
+        Vector2::new(Matrix::WIDTH as u32, Matrix::HEIGHT as u32);
 
+    // NOTE: We are using a coordinate system where Y increases upwards
+    //       So we need to flip the Y coordinates to match SLD2's
+    //       internal coordinate system.
+    //       In addition, we need to scale the coordinates to fit the
+    //       size (in pixels) of the ui matrix. This is important
     for (coord, _cell_color) in engine.cells() {
-        let coord = coord.cast::<i32>().expect("Should never fail");
+        let coord = coord.to_vec().cast::<u32>().expect("Should be safe");
+        let this = (coord + Vector2::new(0, 1))
+            .mul_element_wise(matrix_dims)
+            .div_element_wise(matrix_cells);
 
-        let this_x = coord.x as u32 * m_width / Matrix::WIDTH as u32;
-        let this_y = (coord.y as u32 + 1) * m_heigth / Matrix::HEIGHT as u32;
-        let next_x = (coord.x as u32 + 1) * m_width / Matrix::WIDTH as u32;
-        let next_y = coord.y as u32 * m_heigth / Matrix::HEIGHT as u32;
+        let next = (coord + Vector2::new(1, 0))
+            .mul_element_wise(matrix_dims)
+            .div_element_wise(matrix_cells);
 
-        // NOTE: We are using a coordinate system where Y increases upwards
-        //       So we need to flip the Y coordinates to match SLD2's
-        //       internal coordinate system
         let cell_rect = Rect::new(
-            origin.x + this_x as i32,
-            origin.y - this_y as i32,
-            next_x - this_x,
-            this_y - next_y,
+            origin.x + this.x as i32,
+            origin.y - this.y as i32,
+            next.x - this.x,
+            this.y - next.y,
         );
 
         //TODO: use cell_color and skip drawing if it's None
         canvas.set_draw_color(Color::WHITE);
         canvas.fill_rect(cell_rect).expect("Fatal redering error");
+        canvas.set_draw_color(PLACEHOLDER_1);
+        canvas.draw_rect(cell_rect).expect("Fatal redering error");
     }
 
     canvas.present();

@@ -150,7 +150,7 @@ mod test {
     #[should_panic]
     fn test_cells_i() {
         let piece = Piece::new(Kind::I);
-        let cells = piece.cells().unwrap();
+        let _ = piece.cells().unwrap();
     }
 
     #[rstest]
