@@ -14,11 +14,7 @@ impl Matrix {
     pub const HEIGHT: usize = 20;
     pub const SIZE: usize = Self::WIDTH * Self::HEIGHT;
 
-    fn indexing(Coordinate { x, y }: Coordinate) -> usize {
-        x + y * Self::WIDTH
-    }
-
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self([None; Self::SIZE])
     }
 
@@ -46,6 +42,10 @@ impl Matrix {
 
     pub(super) fn valid_coord(coord: Coordinate) -> bool {
         coord.x < Self::WIDTH
+    }
+
+    fn indexing(Coordinate { x, y }: Coordinate) -> usize {
+        x + y * Self::WIDTH
     }
 }
 

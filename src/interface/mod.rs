@@ -1,3 +1,5 @@
+mod render_traits;
+
 use cgmath::{ElementWise, EuclideanSpace, Vector2};
 use sdl2::{
     event::Event, pixels::Color, rect::Rect, render::Canvas, video::Window,
@@ -5,10 +7,11 @@ use sdl2::{
 
 use crate::engine::{Engine, Matrix};
 
+use self::render_traits::ScreenColor;
+
 const INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
-const PLACEHOLDER_1: Color = Color::RGB(0x66, 0x77, 0x77);
-const PLACEHOLDER_2: Color = Color::RGB(0x77, 0x88, 0x88);
+const PLACEHOLDER: Color = Color::RGB(0x66, 0x77, 0x77);
 
 pub fn run(engine: Engine) {
     let sdl = sdl2::init().expect("SDL2 initialization failed");
@@ -131,7 +134,7 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
     };
 
     // canvas.draw_rect(ui_square).expect("Fatal redering error");
-    canvas.set_draw_color(PLACEHOLDER_1);
+    canvas.set_draw_color(PLACEHOLDER);
     canvas.fill_rect(matrix).expect("Fatal redering error");
     canvas.fill_rect(up_next).expect("Fatal redering error");
     canvas.fill_rect(hold).expect("Fatal redering error");
@@ -148,7 +151,11 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
     //       internal coordinate system.
     //       In addition, we need to scale the coordinates to fit the
     //       size (in pixels) of the ui matrix. This is important
-    for (coord, _cell_color) in engine.cells() {
+    for (coord, cell_color) in engine.cells() {
+        let Some(cell_color) = cell_color else {
+            continue;
+        };
+
         let coord = coord.to_vec().cast::<u32>().expect("Should be safe");
         let this = (coord + Vector2::new(0, 1))
             .mul_element_wise(matrix_dims)
@@ -165,10 +172,9 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
             this.y - next.y,
         );
 
-        //TODO: use cell_color and skip drawing if it's None
-        canvas.set_draw_color(Color::WHITE);
+        canvas.set_draw_color(cell_color.screen_color());
         canvas.fill_rect(cell_rect).expect("Fatal redering error");
-        canvas.set_draw_color(PLACEHOLDER_1);
+        canvas.set_draw_color(PLACEHOLDER);
         canvas.draw_rect(cell_rect).expect("Fatal redering error");
     }
 

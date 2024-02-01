@@ -7,10 +7,10 @@ use cgmath::EuclideanSpace;
 use matrix::CellIter;
 use piece::{Kind as PieceKind, Piece};
 
-pub use matrix::Matrix;
+pub use matrix::{Color, Matrix};
 
-type Coordinate = cgmath::Point2<usize>;
-type Offset = cgmath::Vector2<isize>;
+pub type Coordinate = cgmath::Point2<usize>;
+pub type Offset = cgmath::Vector2<isize>;
 
 #[rustfmt::skip]
 pub enum MoveKind { Left, Right, }
@@ -76,6 +76,13 @@ impl Engine {
             matrix: Matrix::new(),
             bag: Vec::new(),
             cursor: None,
+        }
+    }
+
+    pub fn from_matrix(matrix: Matrix) -> Self {
+        Engine {
+            matrix,
+            ..Self::new()
         }
     }
 
