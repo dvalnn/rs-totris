@@ -49,8 +49,9 @@ impl Engine {
             cursor
         );
 
+        let color = cursor.kind.color();
         for coords in cursor.cells().expect("cursor out of bounds !??!?!") {
-            self.matrix[coords] = true;
+            self.matrix[coords] = Some(color);
         }
     }
 

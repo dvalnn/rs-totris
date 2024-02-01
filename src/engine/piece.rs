@@ -1,4 +1,4 @@
-use super::{Coordinate, Matrix, Offset};
+use super::{matrix::Color, Coordinate, Matrix, Offset};
 use cgmath::{EuclideanSpace, Zero};
 
 #[rustfmt::skip]
@@ -52,6 +52,18 @@ impl Kind {
             Kind::S => &[(-1, 0), (0, 0), (0, 1), ( 1, 1)],
             Kind::Z => &[(-1, 1), (0, 1), (0, 0), ( 1, 0)],
         }.map(Offset::from)
+    }
+
+    pub fn color(&self) -> Color {
+        match self {
+            Kind::I => Color::Cyan,
+            Kind::O => Color::Yellow,
+            Kind::T => Color::Purple,
+            Kind::S => Color::Green,
+            Kind::Z => Color::Red,
+            Kind::J => Color::Blue,
+            Kind::L => Color::Orange,
+        }
     }
 }
 
