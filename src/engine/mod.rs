@@ -2,6 +2,8 @@ mod geometry;
 mod matrix;
 mod piece;
 
+use std::time::Duration;
+
 use cgmath::EuclideanSpace;
 
 use matrix::CellIter;
@@ -24,10 +26,20 @@ impl MoveKind {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Sleep(Duration);
+
+#[derive(Debug, Clone, Copy)]
+pub struct Tick;
+
+#[derive(Debug, Clone, Copy)]
+pub struct LockTick;
+
 pub struct Engine {
     matrix: Matrix,
     bag: Vec<PieceKind>,
     cursor: Option<Piece>,
+    level: u8,
 }
 
 //NOTE: Private functions impl block
@@ -76,6 +88,7 @@ impl Engine {
             matrix: Matrix::new(),
             bag: Vec::new(),
             cursor: None,
+            level: 1,
         }
     }
 
@@ -120,6 +133,14 @@ impl Engine {
             self.cursor = Some(new_cursor);
         }
         self.place_cursor()
+    }
+
+    pub fn drop_time(&self) -> Duration {
+        let level = self.level - 1;
+
+        Duration::from_secs_f32(
+            (0.8 - ((level) as f32 * 0.007)).powi(level as _),
+        )
     }
 
     pub fn cells(&self) -> CellIter<'_> {

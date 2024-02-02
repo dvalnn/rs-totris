@@ -6,7 +6,7 @@ use sdl2::{
     event::Event, pixels::Color, rect::Rect, render::Canvas, video::Window,
 };
 
-use crate::engine::{Engine, Matrix};
+use crate::engine::{Engine, LockTick, Matrix, Tick};
 
 use self::{
     render_traits::ScreenColor,
@@ -20,10 +20,20 @@ const PLACEHOLDER: Color = Color::RGB(0x66, 0x77, 0x77);
 pub fn run(engine: Engine) {
     let sdl = sdl2::init().expect("SDL2 initialization failed");
 
+    let event_subsystem =
+        sdl.event().expect("SDL2 event subsystem aquisition failed");
+
+    event_subsystem
+        .register_custom_event::<Tick>()
+        .expect("Failed to register custom event");
+
+    event_subsystem
+        .register_custom_event::<LockTick>()
+        .expect("Failed to register custom event");
+
     let mut canvas = {
-        let video = sdl
-            .video()
-            .expect("SDL2 video subsystem initialization failed");
+        let video =
+            sdl.video().expect("SDL2 video subsystem aquisition failed");
 
         let window = video
             .window("rs-totris", INIT_SIZE.x, INIT_SIZE.y)
@@ -40,13 +50,24 @@ pub fn run(engine: Engine) {
             .expect("Canvas creation failed")
     };
 
-    let mut events = sdl.event_pump().expect("Event pump creation failed");
+    let mut events = sdl.event_pump().expect("Event pump aquisition failed");
 
     loop {
         for event in events.poll_iter() {
             #[allow(clippy::single_match)]
             match event {
                 Event::Quit { .. } => return,
+                Event::User { .. }
+                    if event.as_user_event_type::<Tick>().is_some() =>
+                {
+                    todo!();
+                }
+                Event::User { .. }
+                    if event.as_user_event_type::<LockTick>().is_some() =>
+                {
+                    todo!();
+                }
+
                 _ => {}
             }
         }
