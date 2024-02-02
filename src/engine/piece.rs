@@ -74,34 +74,15 @@ pub(super) struct Piece {
     pub rotation: Rotation,
 }
 
-//NOTE: Private functions impl block
 impl Piece {
     const CELL_COUNT: usize = 4;
+    const SPAWN_POSITION: Offset =
+        Offset::new((Matrix::WIDTH / 2) as isize, Matrix::HEIGHT as isize);
 
-    fn rotator(&self) -> impl Fn(Offset) -> Offset + '_ {
-        move |offset| match self.kind {
-            Kind::O => offset,
-            Kind::I => offset * self.rotation + self.rotation.i_offset(),
-            _ => offset * self.rotation,
-        }
-    }
-
-    fn positioner(&self) -> impl Fn(Offset) -> Option<Coordinate> + '_ {
-        move |offset| {
-            let cell = offset + self.position;
-            let positive_offset = cell.cast::<usize>()?;
-            let coord = Coordinate::from_vec(positive_offset);
-            Matrix::valid_coord(coord).then_some(coord)
-        }
-    }
-}
-
-//NOTE: Public functions impl block
-impl Piece {
-    pub(super) fn new(kind: Kind) -> Self {
+    pub fn new(kind: Kind) -> Self {
         Piece {
             kind,
-            position: Offset::new(0, 0),
+            position: Self::SPAWN_POSITION,
             rotation: Rotation::N,
         }
     }
@@ -123,6 +104,23 @@ impl Piece {
             .into_iter()
             .collect::<Option<Vec<_>>>()
     }
+
+    fn rotator(&self) -> impl Fn(Offset) -> Offset + '_ {
+        move |offset| match self.kind {
+            Kind::O => offset,
+            Kind::I => offset * self.rotation + self.rotation.i_offset(),
+            _ => offset * self.rotation,
+        }
+    }
+
+    fn positioner(&self) -> impl Fn(Offset) -> Option<Coordinate> + '_ {
+        move |offset| {
+            let cell = offset + self.position;
+            let positive_offset = cell.cast::<usize>()?;
+            let coord = Coordinate::from_vec(positive_offset);
+            Matrix::valid_coord(coord).then_some(coord)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -133,7 +131,12 @@ mod test {
 
     #[test]
     fn test_cells_o() {
-        let piece = Piece::new(Kind::O);
+        let piece = Piece {
+            kind: Kind::O,
+            position: Offset::zero(),
+            rotation: Rotation::N,
+        };
+
         let cells = piece.cells().expect("Should be a valid O piece");
         assert_eq!(
             cells,
@@ -149,7 +152,11 @@ mod test {
     #[test]
     #[should_panic]
     fn test_cells_i() {
-        let piece = Piece::new(Kind::I);
+        let piece = Piece {
+            kind: Kind::I,
+            position: Offset::zero(),
+            rotation: Rotation::N,
+        };
         let _ = piece.cells().unwrap();
     }
 

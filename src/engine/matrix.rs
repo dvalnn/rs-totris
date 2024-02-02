@@ -71,10 +71,10 @@ pub struct CellIter<'matrix> {
 }
 
 impl<'matrix> Iterator for CellIter<'matrix> {
-    type Item = (Coordinate, &'matrix Option<Color>);
+    type Item = (Coordinate, Option<Color>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(cell) = self.cells.next() else {
+        let Some(&cell) = self.cells.next() else {
             return None;
         };
 
@@ -107,18 +107,18 @@ mod test {
         assert_eq!(
             first_five,
             [
-                (Coordinate::new(0, 0), &None),
-                (Coordinate::new(1, 0), &None),
-                (Coordinate::new(2, 0), &Some(Color::Yellow)),
-                (Coordinate::new(3, 0), &None),
-                (Coordinate::new(4, 0), &None),
+                (Coordinate::new(0, 0), None),
+                (Coordinate::new(1, 0), None),
+                (Coordinate::new(2, 0), Some(Color::Yellow)),
+                (Coordinate::new(3, 0), None),
+                (Coordinate::new(4, 0), None),
             ]
         );
 
         let other_item = iter.by_ref().skip(8).next();
         assert_eq!(
             other_item,
-            Some((Coordinate::new(3, 1), &Some(Color::Cyan))),
+            Some((Coordinate::new(3, 1), Some(Color::Cyan))),
         );
 
         assert!(iter.all(|(_, color)| color.is_none()));

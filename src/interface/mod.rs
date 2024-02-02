@@ -1,19 +1,22 @@
 mod render_traits;
 mod sub_rect;
 
-use cgmath::{ElementWise, EuclideanSpace, Vector2};
+use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
     event::Event, pixels::Color, rect::Rect, render::Canvas, video::Window,
 };
 
-use crate::engine::{Engine, LockTick, Matrix, Tick};
+use crate::engine::{
+    Color as EngineColor, Coordinate, Engine, LockTick, Matrix, Tick,
+};
 
 use self::{
     render_traits::ScreenColor,
     sub_rect::{Align, SubRect},
 };
 
-const INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
+const WINDOW_INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
+
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
 const PLACEHOLDER: Color = Color::RGB(0x66, 0x77, 0x77);
 
@@ -36,7 +39,7 @@ pub fn run(engine: Engine) {
             sdl.video().expect("SDL2 video subsystem aquisition failed");
 
         let window = video
-            .window("rs-totris", INIT_SIZE.x, INIT_SIZE.y)
+            .window("rs-totris", WINDOW_INIT_SIZE.x, WINDOW_INIT_SIZE.y)
             .position_centered()
             .resizable()
             .build()
@@ -67,6 +70,12 @@ pub fn run(engine: Engine) {
                 {
                     todo!();
                 }
+
+                Event::KeyDown {
+                    keycode: Some(key), ..
+                } => match key {
+                    _ => todo!(),
+                },
 
                 _ => {}
             }
@@ -105,51 +114,83 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
         .sub_rect((0.25, 11.0 / 16.0), Some((Align::Near, Align::Far)))
         .sub_rect((7.0 / 8.0, 8.0 / 11.0), Some((Align::Center, Align::Near)));
 
-    // canvas.draw_rect(ui_square).expect("Fatal redering error");
     canvas.set_draw_color(PLACEHOLDER);
-
     for sub_rect in &[matrix, up_next, hold, queue, score] {
         canvas
             .fill_rect(Rect::from(sub_rect))
             .expect("Fatal redering error");
     }
 
-    let origin = matrix.bottom_left();
-    let matrix_dims = matrix.size();
-    let matrix_cells =
+    let mut cell_ctx = CellDrawContext {
+        origin: matrix.bottom_left(),
+        dims: matrix.size(),
+        canvas,
+    };
+
+    for (coord, cell_color) in engine.cells() {
+        cell_ctx.try_draw_cell(coord, cell_color);
+    }
+
+    if let Some((cursor_cells, color)) = engine.cursor_info() {
+        for coord in cursor_cells {
+            cell_ctx.draw_cell(coord, color);
+        }
+    }
+
+    canvas.present();
+}
+
+pub struct CellDrawContext<'canvas> {
+    origin: Point2<i32>,
+    dims: Vector2<u32>,
+    canvas: &'canvas mut Canvas<Window>,
+}
+
+impl CellDrawContext<'_> {
+    const CELL_COUNT: Vector2<u32> =
         Vector2::new(Matrix::WIDTH as u32, Matrix::HEIGHT as u32);
 
-    // NOTE: We are using a coordinate system where Y increases upwards
-    //       So we need to flip the Y coordinates to match SLD2's
-    //       internal coordinate system.
-    //       In addition, we need to scale the coordinates to fit the
-    //       size (in pixels) of the ui matrix. This is important
-    for (coord, cell_color) in engine.cells() {
+    fn try_draw_cell(
+        &mut self,
+        coord: Coordinate,
+        cell_color: Option<EngineColor>,
+    ) {
         let Some(cell_color) = cell_color else {
-            continue;
+            return;
         };
 
+        self.draw_cell(coord, cell_color)
+    }
+
+    /// NOTE: We are using a coordinate system where Y increases upwards
+    ///       So we need to flip the Y coordinates to match SLD2's
+    ///       internal coordinate system.
+    ///       In addition, we need to scale the coordinates to fit the
+    ///       size (in pixels) of the ui matrix. This is important
+    fn draw_cell(&mut self, coord: Coordinate, color: EngineColor) {
         let coord = coord.to_vec().cast::<u32>().expect("Should be safe");
         let this = (coord + Vector2::new(0, 1))
-            .mul_element_wise(matrix_dims)
-            .div_element_wise(matrix_cells);
+            .mul_element_wise(self.dims)
+            .div_element_wise(Self::CELL_COUNT);
 
         let next = (coord + Vector2::new(1, 0))
-            .mul_element_wise(matrix_dims)
-            .div_element_wise(matrix_cells);
+            .mul_element_wise(self.dims)
+            .div_element_wise(Self::CELL_COUNT);
 
         let cell_rect = Rect::new(
-            origin.x + this.x as i32,
-            origin.y - this.y as i32,
+            self.origin.x + this.x as i32,
+            self.origin.y - this.y as i32,
             next.x - this.x,
             this.y - next.y,
         );
 
-        canvas.set_draw_color(cell_color.screen_color());
-        canvas.fill_rect(cell_rect).expect("Fatal redering error");
-        canvas.set_draw_color(PLACEHOLDER);
-        canvas.draw_rect(cell_rect).expect("Fatal redering error");
+        self.canvas.set_draw_color(color.screen_color());
+        self.canvas
+            .fill_rect(cell_rect)
+            .expect("Fatal redering error");
+        self.canvas.set_draw_color(PLACEHOLDER);
+        self.canvas
+            .draw_rect(cell_rect)
+            .expect("Fatal redering error");
     }
-
-    canvas.present();
 }
