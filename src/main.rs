@@ -12,7 +12,6 @@ fn main() {
     matrix[Coordinate::new(3, 2)] = Some(Color::Red);
     matrix[Coordinate::new(4, 2)] = Some(Color::Red);
     matrix[Coordinate::new(5, 2)] = Some(Color::Red);
-
     let engine = Engine::from_matrix(matrix);
     interface::run(engine);
 }

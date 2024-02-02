@@ -1,4 +1,5 @@
 mod render_traits;
+mod sub_rect;
 
 use cgmath::{ElementWise, EuclideanSpace, Vector2};
 use sdl2::{
@@ -7,7 +8,10 @@ use sdl2::{
 
 use crate::engine::{Engine, Matrix};
 
-use self::render_traits::ScreenColor;
+use self::{
+    render_traits::ScreenColor,
+    sub_rect::{Align, SubRect},
+};
 
 const INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
@@ -57,92 +61,40 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
 
     //NOTE: draw graphics from here on out
 
-    let ui_square = {
-        let (x, y) = canvas.viewport().size();
-        let small_side = std::cmp::min(x, y);
-        let margin = (x.saturating_sub(y) / 2, y.saturating_sub(x) / 2);
-        Rect::new(margin.0 as i32, margin.1 as i32, small_side, small_side)
-    };
+    let viewport = canvas.viewport();
+    let ui_square = SubRect::absolute(viewport, (1.0, 1.0), None);
 
-    let matrix = {
-        let mut matrix = ui_square;
-        matrix.resize(
-            ((ui_square.width() / 2) as f32 * 7.0 / 8.0) as _,
-            (ui_square.height() as f32 * 7.0 / 8.0) as _,
-        );
-        matrix.center_on(ui_square.center());
-        matrix
-    };
+    let matrix = ui_square
+        .sub_rect((0.5, 1.0), None)
+        .sub_rect((7.0 / 8.0, 7.0 / 8.0), None);
 
-    let up_next = {
-        let mut bounding_box = ui_square;
-        let quarter = ui_square.width() / 4;
-        bounding_box.resize(quarter, quarter);
-        bounding_box.offset(3 * quarter as i32, 0);
+    let up_next = ui_square
+        .sub_rect((0.25, 0.25), Some((Align::Far, Align::Near)))
+        .sub_rect((0.75, 0.75), None);
 
-        let mut rect = bounding_box;
-        let inner_dim = bounding_box.width() * 3 / 4;
-        rect.resize(inner_dim, inner_dim);
-        rect.center_on(bounding_box.center());
+    let hold = ui_square
+        .sub_rect((0.25, 0.25), Some((Align::Near, Align::Near)))
+        .sub_rect((0.75, 0.75), None);
 
-        rect
-    };
+    let queue = ui_square
+        .sub_rect((0.25, 0.75), Some((Align::Far, Align::Far)))
+        .sub_rect((5.0 / 8.0, 23.0 / 24.0), Some((Align::Center, Align::Near)));
 
-    let hold = {
-        let mut bounding_box = ui_square;
-        let quarter = ui_square.width() / 4;
-        bounding_box.resize(quarter, quarter);
-
-        let mut rect = bounding_box;
-        let inner_dim = bounding_box.width() * 3 / 4;
-        rect.resize(inner_dim, inner_dim);
-        rect.center_on(bounding_box.center());
-
-        rect
-    };
-
-    let queue = {
-        let mut bounding_box = ui_square;
-        let quarter = ui_square.width() / 4;
-        bounding_box.resize(quarter, quarter * 3);
-        bounding_box.offset(3 * quarter as i32, quarter as i32);
-
-        let mut rect = bounding_box;
-        let inner_width = bounding_box.width() * 5 / 8;
-        let inner_height = bounding_box.height() * 23 / 24;
-        rect.resize(inner_width, inner_height);
-        rect.center_on(bounding_box.center());
-        rect.set_y(bounding_box.top());
-
-        rect
-    };
-
-    let score = {
-        let mut bounding_box = ui_square;
-        let quarter = ui_square.width() / 4;
-        let sixteenth = quarter / 4;
-        bounding_box.resize(quarter, 2 * quarter);
-        bounding_box.offset(0, 5 * sixteenth as i32);
-
-        let mut rect = bounding_box;
-        let inner_width = bounding_box.width() * 7 / 8;
-        rect.set_width(inner_width);
-        rect.center_on(bounding_box.center());
-        rect.set_y(bounding_box.top());
-
-        rect
-    };
+    let score = ui_square
+        .sub_rect((0.25, 11.0 / 16.0), Some((Align::Near, Align::Far)))
+        .sub_rect((7.0 / 8.0, 8.0 / 11.0), Some((Align::Center, Align::Near)));
 
     // canvas.draw_rect(ui_square).expect("Fatal redering error");
     canvas.set_draw_color(PLACEHOLDER);
-    canvas.fill_rect(matrix).expect("Fatal redering error");
-    canvas.fill_rect(up_next).expect("Fatal redering error");
-    canvas.fill_rect(hold).expect("Fatal redering error");
-    canvas.fill_rect(queue).expect("Fatal redering error");
-    canvas.fill_rect(score).expect("Fatal redering error");
+
+    for sub_rect in &[matrix, up_next, hold, queue, score] {
+        canvas
+            .fill_rect(Rect::from(sub_rect))
+            .expect("Fatal redering error");
+    }
 
     let origin = matrix.bottom_left();
-    let matrix_dims = Vector2::from(matrix.size());
+    let matrix_dims = matrix.size();
     let matrix_cells =
         Vector2::new(Matrix::WIDTH as u32, Matrix::HEIGHT as u32);
 
