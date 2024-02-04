@@ -25,15 +25,6 @@ impl MoveKind {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Sleep(Duration);
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Tick;
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct LockTick;
-
 pub(crate) struct Engine {
     matrix: Matrix,
     bag: Vec<PieceKind>,
