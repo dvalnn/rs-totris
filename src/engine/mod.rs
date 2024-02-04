@@ -126,7 +126,7 @@ impl Engine {
             .expect("Place cursor called without cursor");
 
         debug_assert!(
-            !self.matrix.is_placeable(&cursor),
+            self.matrix.is_placeable(&cursor),
             "Tried to place cursor in unplaceable location: {:?}",
             cursor
         );
