@@ -1,13 +1,16 @@
 mod render_traits;
 mod sub_rect;
 
+use std::time::Duration;
+
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
-    event::Event, pixels::Color, rect::Rect, render::Canvas, video::Window,
+    event::Event, keyboard::Keycode, pixels::Color, rect::Rect, render::Canvas,
+    video::Window,
 };
 
 use crate::engine::{
-    Color as EngineColor, Coordinate, Engine, LockTick, Matrix, Tick,
+    Color as EngineColor, Coordinate, Engine, Matrix, MoveKind, RotateKind,
 };
 
 use self::{
@@ -16,11 +19,22 @@ use self::{
 };
 
 const WINDOW_INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
-
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
 const PLACEHOLDER: Color = Color::RGB(0x66, 0x77, 0x77);
 
-pub fn run(engine: Engine) {
+#[derive(Debug, Clone, Copy)]
+struct Tick;
+
+#[derive(Debug, Clone, Copy)]
+struct LockTick;
+
+#[derive(Debug, Clone, Copy)]
+struct SoftDropTick;
+
+#[derive(Debug, Clone, Copy)]
+struct Sleep(Duration);
+
+pub fn run(mut engine: Engine) {
     let sdl = sdl2::init().expect("SDL2 initialization failed");
 
     let event_subsystem =
@@ -32,6 +46,10 @@ pub fn run(engine: Engine) {
 
     event_subsystem
         .register_custom_event::<LockTick>()
+        .expect("Failed to register custom event");
+
+    event_subsystem
+        .register_custom_event::<SoftDropTick>()
         .expect("Failed to register custom event");
 
     let mut canvas = {
@@ -55,33 +73,81 @@ pub fn run(engine: Engine) {
 
     let mut events = sdl.event_pump().expect("Event pump aquisition failed");
 
+    let mut dirty = true;
     loop {
         for event in events.poll_iter() {
-            #[allow(clippy::single_match)]
             match event {
                 Event::Quit { .. } => return,
                 Event::User { .. }
                     if event.as_user_event_type::<Tick>().is_some() =>
                 {
+                    // dirty = true;
                     todo!();
                 }
                 Event::User { .. }
                     if event.as_user_event_type::<LockTick>().is_some() =>
+                {
+                    // dirty = true;
+                    todo!();
+                }
+
+                Event::User { .. }
+                    if event.as_user_event_type::<SoftDropTick>().is_some() =>
                 {
                     todo!();
                 }
 
                 Event::KeyDown {
                     keycode: Some(key), ..
-                } => match key {
-                    _ => todo!(),
-                },
+                } => {
+                    let Ok(input) = Input::try_from(key) else {
+                        return;
+                    };
+                    dirty = true;
+                    match input {
+                        Input::SoftDrop => todo!("SoftDrop"),
+                        Input::HardDrop => engine.hard_drop(),
+                        Input::Move(kind) => {
+                            let _ = engine.move_cursor(kind);
+                        }
+                        Input::Rotate(kind) => {
+                            let _ = engine.rotate_cursor(kind);
+                        }
+                    }
+                }
 
                 _ => {}
             }
         }
 
-        draw(&mut canvas, &engine)
+        if dirty {
+            draw(&mut canvas, &engine);
+            dirty = false;
+        }
+    }
+}
+
+enum Input {
+    Rotate(RotateKind),
+    Move(MoveKind),
+    HardDrop,
+    SoftDrop,
+}
+
+impl TryFrom<Keycode> for Input {
+    type Error = ();
+    fn try_from(key: Keycode) -> Result<Self, Self::Error> {
+        Ok(match key {
+            Keycode::Right => Input::Move(MoveKind::Right),
+            Keycode::Left => Input::Move(MoveKind::Left),
+            Keycode::Down => Input::SoftDrop,
+            Keycode::Space => Input::HardDrop,
+            Keycode::Z => Input::Rotate(RotateKind::CounterClockwise),
+            Keycode::X => Input::Rotate(RotateKind::Clockwise),
+            Keycode::Escape => todo!("Pause"),
+
+            _ => return Err(()),
+        })
     }
 }
 
