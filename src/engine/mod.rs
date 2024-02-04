@@ -8,18 +8,18 @@ use cgmath::EuclideanSpace;
 
 use piece::{Kind as PieceKind, Piece};
 
-pub(crate) use matrix::{CellIter, Color, Matrix};
+pub use matrix::{CellIter, Color, Matrix};
 
-pub(crate) type Coordinate = cgmath::Point2<usize>;
-pub(crate) type Offset = cgmath::Vector2<isize>;
-
-#[rustfmt::skip]
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum RotateKind { Clockwise, CounterClockwise }
+pub type Coordinate = cgmath::Point2<usize>;
+pub type Offset = cgmath::Vector2<isize>;
 
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum MoveKind { Left, Right }
+pub enum RotateKind { Clockwise, CounterClockwise }
+
+#[rustfmt::skip]
+#[derive(Clone, Copy, Debug)]
+pub enum MoveKind { Left, Right }
 
 impl MoveKind {
     fn offset(&self) -> Offset {
@@ -30,7 +30,7 @@ impl MoveKind {
     }
 }
 
-pub(crate) struct Engine {
+pub struct Engine {
     matrix: Matrix,
     bag: Vec<PieceKind>,
     cursor: Option<Piece>,
@@ -38,7 +38,7 @@ pub(crate) struct Engine {
 }
 
 impl Engine {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Engine {
             matrix: Matrix::new(),
             bag: Vec::new(),
@@ -47,26 +47,26 @@ impl Engine {
         }
     }
 
-    pub(crate) fn from_matrix(matrix: Matrix) -> Self {
+    pub fn from_matrix(matrix: Matrix) -> Self {
         Engine {
             matrix,
             ..Self::new()
         }
     }
 
-    pub(crate) fn debug_add_cursor(&mut self) {
+    pub fn debug_add_cursor(&mut self) {
         self.cursor = Some(Piece::new(PieceKind::J));
     }
 
-    pub(crate) fn cursor_has_hit_bottom(&self) -> bool {
+    pub fn cursor_has_hit_bottom(&self) -> bool {
         self.ticked_down_cursor().is_none()
     }
 
-    pub(crate) fn rotate_cursor(&mut self, kind: RotateKind) -> Result<(), ()> {
+    pub fn rotate_cursor(&mut self, kind: RotateKind) -> Result<(), ()> {
         todo!("rotate cursor {:?}", kind);
     }
 
-    pub(crate) fn move_cursor(&mut self, kind: MoveKind) -> Result<(), ()> {
+    pub fn move_cursor(&mut self, kind: MoveKind) -> Result<(), ()> {
         let Some(cursor) = self.cursor.as_mut() else {
             return Ok(());
         };
@@ -84,21 +84,21 @@ impl Engine {
         Ok(())
     }
 
-    pub(crate) fn tick_down(&mut self) {
+    pub fn tick_down(&mut self) {
         self.cursor = Some(
             self.ticked_down_cursor()
                 .expect("tried to tick down to invalid position"),
         );
     }
 
-    pub(crate) fn hard_drop(&mut self) {
+    pub fn hard_drop(&mut self) {
         while let Some(new_cursor) = self.ticked_down_cursor() {
             self.cursor = Some(new_cursor);
         }
         self.place_cursor()
     }
 
-    pub(crate) fn drop_time(&self) -> Duration {
+    pub fn drop_time(&self) -> Duration {
         let level = self.level - 1;
 
         Duration::from_secs_f32(
@@ -106,16 +106,25 @@ impl Engine {
         )
     }
 
-    pub(crate) fn cells(&self) -> CellIter<'_> {
+    pub fn cells(&self) -> CellIter<'_> {
         CellIter {
             position: Coordinate::origin(),
             cells: self.matrix.0.iter(),
         }
     }
 
-    pub(crate) fn cursor_info(&self) -> Option<(Vec<Coordinate>, Color)> {
+    pub fn cursor_info(&self) -> Option<(Vec<Coordinate>, Color)> {
         let cursor = self.cursor?;
         Some((cursor.cells()?, cursor.kind.color()))
+    }
+
+    pub fn line_clear(&mut self, mut animation: impl FnMut(&[usize])) {
+        let lines: Vec<usize> = self.matrix.full_lines();
+        if lines.is_empty() {
+            return;
+        }
+        animation(lines.as_slice());
+        self.matrix.clear_lines(lines.as_slice());
     }
 
     fn refill_bag(&mut self) {
@@ -147,9 +156,7 @@ impl Engine {
     }
 
     fn ticked_down_cursor(&self) -> Option<Piece> {
-        let Some(cursor) = self.cursor else {
-            return None;
-        };
+        let cursor = self.cursor?;
         let new_cursor = cursor.moved_by(Offset::new(0, -1));
         (!self.matrix.is_clipping(&new_cursor)).then_some(new_cursor)
     }

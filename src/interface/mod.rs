@@ -1,8 +1,6 @@
 mod render_traits;
 mod sub_rect;
 
-use std::time::Duration;
-
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
     event::Event, keyboard::Keycode, pixels::Color, rect::Rect, render::Canvas,
@@ -30,9 +28,6 @@ struct LockTick;
 
 #[derive(Debug, Clone, Copy)]
 struct SoftDropTick;
-
-#[derive(Debug, Clone, Copy)]
-struct Sleep(Duration);
 
 pub fn run(mut engine: Engine) {
     let sdl = sdl2::init().expect("SDL2 initialization failed");
@@ -74,6 +69,7 @@ pub fn run(mut engine: Engine) {
     let mut events = sdl.event_pump().expect("Event pump aquisition failed");
 
     let mut dirty = true;
+    let mut lock_down = false;
     loop {
         for event in events.poll_iter() {
             match event {
@@ -101,12 +97,15 @@ pub fn run(mut engine: Engine) {
                     keycode: Some(key), ..
                 } => {
                     let Ok(input) = Input::try_from(key) else {
-                        return;
+                        continue;
                     };
                     dirty = true;
                     match input {
                         Input::SoftDrop => todo!("SoftDrop"),
-                        Input::HardDrop => engine.hard_drop(),
+                        Input::HardDrop => {
+                            lock_down = true;
+                            engine.hard_drop();
+                        }
                         Input::Move(kind) => {
                             let _ = engine.move_cursor(kind);
                         }
@@ -118,6 +117,11 @@ pub fn run(mut engine: Engine) {
 
                 _ => {}
             }
+        }
+
+        if lock_down {
+            engine.line_clear(|_| (/*canvas animation*/));
+            lock_down = false;
         }
 
         if dirty {

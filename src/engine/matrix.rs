@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    ops::{Index, IndexMut},
+    slice::ArrayChunks,
+};
 
 use super::{geometry::GridIncrement, piece::Piece, Coordinate};
 
@@ -45,8 +48,31 @@ impl Matrix {
         coord.x < Self::WIDTH
     }
 
+    pub(super) fn full_lines(&self) -> Vec<usize> {
+        self.lines()
+            .enumerate()
+            .filter_map(|(i, line)| {
+                line.iter().all(Option::is_some).then_some(i)
+            })
+            .collect()
+    }
+
+    pub(super) fn clear_lines(&mut self, indices: &[usize]) {
+        debug_assert!(indices.is_sorted());
+        for &line in indices.iter().rev() {
+            // override the line to clear with the remainder of the matrix
+            let start_of_remainder = Self::WIDTH * (line + 1);
+            self.0.copy_within(start_of_remainder.., line * Self::WIDTH);
+            self.0[Self::SIZE - Self::WIDTH..].fill(None);
+        }
+    }
+
     fn indexing(Coordinate { x, y }: Coordinate) -> usize {
         x + y * Self::WIDTH
+    }
+
+    fn lines(&self) -> ArrayChunks<'_, Option<Color>, { Self::WIDTH }> {
+        self.0.array_chunks()
     }
 }
 
@@ -75,13 +101,9 @@ impl<'matrix> Iterator for CellIter<'matrix> {
     type Item = (Coordinate, Option<Color>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(&cell) = self.cells.next() else {
-            return None;
-        };
-
+        let &cell = self.cells.next()?;
         let coord = self.position;
         self.position.grid_inc();
-
         Some((coord, cell))
     }
 }
@@ -116,7 +138,7 @@ mod test {
             ]
         );
 
-        let other_item = iter.by_ref().skip(8).next();
+        let other_item = iter.by_ref().nth(8);
         assert_eq!(
             other_item,
             Some((Coordinate::new(3, 1), Some(Color::Cyan))),
