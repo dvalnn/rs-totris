@@ -14,7 +14,12 @@ pub(crate) type Coordinate = cgmath::Point2<usize>;
 pub(crate) type Offset = cgmath::Vector2<isize>;
 
 #[rustfmt::skip]
-pub(crate) enum MoveKind { Left, Right, }
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum RotateKind { Clockwise, CounterClockwise }
+
+#[rustfmt::skip]
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum MoveKind { Left, Right }
 
 impl MoveKind {
     fn offset(&self) -> Offset {
@@ -55,6 +60,10 @@ impl Engine {
 
     pub(crate) fn cursor_has_hit_bottom(&self) -> bool {
         self.ticked_down_cursor().is_none()
+    }
+
+    pub(crate) fn rotate_cursor(&mut self, kind: RotateKind) -> Result<(), ()> {
+        todo!("rotate cursor {:?}", kind);
     }
 
     pub(crate) fn move_cursor(&mut self, kind: MoveKind) -> Result<(), ()> {
