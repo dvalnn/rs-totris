@@ -22,9 +22,10 @@ impl Matrix {
         let Some(cells) = piece.cells() else {
             return true;
         };
-        cells
-            .iter()
-            .any(|coord| !Matrix::on_matrix(*coord) || self[*coord].is_some())
+        cells.iter().any(|coord| {
+            !Self::valid_coord(*coord)
+                || (Self::on_matrix(*coord) && self[*coord].is_some())
+        })
     }
 
     pub(super) fn is_placeable(&self, piece: &Piece) -> bool {
