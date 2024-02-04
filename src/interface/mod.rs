@@ -1,6 +1,8 @@
 mod render_traits;
 mod sub_rect;
 
+use std::time::Instant;
+
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
     event::Event, keyboard::Keycode, pixels::Color, rect::Rect, render::Canvas,
@@ -29,7 +31,7 @@ struct LockTick;
 #[derive(Debug, Clone, Copy)]
 struct SoftDropTick;
 
-pub fn run(mut engine: Engine) {
+pub fn run(engine: Engine) {
     let sdl = sdl2::init().expect("SDL2 initialization failed");
 
     let event_subsystem =
@@ -47,7 +49,7 @@ pub fn run(mut engine: Engine) {
         .register_custom_event::<SoftDropTick>()
         .expect("Failed to register custom event");
 
-    let mut canvas = {
+    let canvas = {
         let video =
             sdl.video().expect("SDL2 video subsystem aquisition failed");
 
@@ -66,24 +68,36 @@ pub fn run(mut engine: Engine) {
             .expect("Canvas creation failed")
     };
 
-    let mut events = sdl.event_pump().expect("Event pump aquisition failed");
+    let events = sdl.event_pump().expect("Event pump aquisition failed");
+    game_loop(events, engine, canvas);
+}
 
-    let mut dirty = true;
+fn game_loop(
+    mut events: sdl2::EventPump,
+    mut engine: Engine,
+    mut canvas: Canvas<Window>,
+) {
     let mut lock_down = false;
+    let mut previous_time = Instant::now();
     loop {
+        let now = Instant::now();
+        //TODO: save pass delta time to engine in order to tick down
+        let delta = now.duration_since(previous_time);
+        previous_time = now;
+
+        println!("Delta time: {:?}", delta.as_secs_f64());
+
         for event in events.poll_iter() {
             match event {
                 Event::Quit { .. } => return,
                 Event::User { .. }
                     if event.as_user_event_type::<Tick>().is_some() =>
                 {
-                    // dirty = true;
                     todo!();
                 }
                 Event::User { .. }
                     if event.as_user_event_type::<LockTick>().is_some() =>
                 {
-                    // dirty = true;
                     todo!();
                 }
 
@@ -99,7 +113,6 @@ pub fn run(mut engine: Engine) {
                     let Ok(input) = Input::try_from(key) else {
                         continue;
                     };
-                    dirty = true;
                     match input {
                         Input::SoftDrop => todo!("SoftDrop"),
                         Input::HardDrop => {
@@ -124,10 +137,7 @@ pub fn run(mut engine: Engine) {
             lock_down = false;
         }
 
-        if dirty {
-            draw(&mut canvas, &engine);
-            dirty = false;
-        }
+        draw(&mut canvas, &engine);
     }
 }
 
