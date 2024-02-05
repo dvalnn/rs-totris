@@ -35,6 +35,7 @@ pub struct Engine {
     bag: Vec<PieceKind>,
     cursor: Option<Piece>,
     level: u8,
+    drop_timer: Duration,
 }
 
 impl Engine {
@@ -44,6 +45,7 @@ impl Engine {
             bag: Vec::new(),
             cursor: None,
             level: 1,
+            drop_timer: Duration::default(),
         }
     }
 
@@ -127,7 +129,7 @@ impl Engine {
         self.matrix.clear_lines(lines.as_slice());
     }
 
-    fn refill_bag(&mut self) {
+    pub fn refill_bag(&mut self) {
         debug_assert!(self.bag.is_empty());
         use rand::seq::SliceRandom;
         use rand::thread_rng;
@@ -137,7 +139,7 @@ impl Engine {
         self.bag.shuffle(&mut rng);
     }
 
-    fn place_cursor(&mut self) {
+    pub fn place_cursor(&mut self) {
         let cursor = self
             .cursor
             .take()

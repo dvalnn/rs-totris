@@ -1,7 +1,8 @@
+mod delta_time;
 mod render_traits;
 mod sub_rect;
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
@@ -14,6 +15,7 @@ use crate::engine::{
 };
 
 use self::{
+    delta_time::DeltaTime,
     render_traits::ScreenColor,
     sub_rect::{Align, SubRect},
 };
@@ -77,36 +79,21 @@ fn game_loop(
     mut engine: Engine,
     mut canvas: Canvas<Window>,
 ) {
+    let mut soft_drop = false;
     let mut lock_down = false;
-    let mut previous_time = Instant::now();
-    loop {
-        let now = Instant::now();
-        //TODO: save pass delta time to engine in order to tick down
-        let delta = now.duration_since(previous_time);
-        previous_time = now;
 
-        println!("Delta time: {:?}", delta.as_secs_f64());
+    let mut delta = DeltaTime::new();
+
+    let mut tick_timer = Duration::default();
+    let mut fast_timer = Duration::default();
+    let mut _lock_timer = Duration::default();
+
+    loop {
+        delta.update();
 
         for event in events.poll_iter() {
             match event {
                 Event::Quit { .. } => return,
-                Event::User { .. }
-                    if event.as_user_event_type::<Tick>().is_some() =>
-                {
-                    todo!();
-                }
-                Event::User { .. }
-                    if event.as_user_event_type::<LockTick>().is_some() =>
-                {
-                    todo!();
-                }
-
-                Event::User { .. }
-                    if event.as_user_event_type::<SoftDropTick>().is_some() =>
-                {
-                    todo!();
-                }
-
                 Event::KeyDown {
                     keycode: Some(key), ..
                 } => {
@@ -114,7 +101,9 @@ fn game_loop(
                         continue;
                     };
                     match input {
-                        Input::SoftDrop => todo!("SoftDrop"),
+                        Input::SoftDrop => {
+                            soft_drop = true;
+                        }
                         Input::HardDrop => {
                             lock_down = true;
                             engine.hard_drop();
@@ -128,7 +117,45 @@ fn game_loop(
                     }
                 }
 
+                Event::KeyUp {
+                    keycode: Some(Keycode::Down),
+                    ..
+                } => {
+                    soft_drop = false;
+                }
+
                 _ => {}
+            }
+        }
+
+        //TODO: clean up this logic into a dedicated function
+        {
+            tick_timer += delta.get();
+            fast_timer += delta.get();
+
+            let tick_time = engine.drop_time();
+            let fast_tick_time = tick_time / 20;
+
+            let tick = tick_timer >= tick_time;
+            let fast_tick = fast_timer >= fast_tick_time;
+
+            if engine.cursor_info().is_some()
+                && ((soft_drop && fast_tick) || tick)
+            {
+                if engine.cursor_has_hit_bottom() {
+                    lock_down = true;
+                    engine.place_cursor();
+                } else {
+                    engine.tick_down();
+                }
+            }
+
+            if fast_tick {
+                fast_timer -= fast_tick_time;
+            }
+
+            if tick {
+                tick_timer -= tick_time;
             }
         }
 
