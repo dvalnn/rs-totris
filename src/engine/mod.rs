@@ -9,13 +9,10 @@ use cgmath::EuclideanSpace;
 use piece::{Kind as PieceKind, Piece};
 
 pub use matrix::{CellIter, Color, Matrix};
+pub use piece::RotateKind;
 
 pub type Coordinate = cgmath::Point2<usize>;
 pub type Offset = cgmath::Vector2<isize>;
-
-#[rustfmt::skip]
-#[derive(Clone, Copy, Debug)]
-pub enum RotateKind { Clockwise, CounterClockwise }
 
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug)]
@@ -56,8 +53,12 @@ impl Engine {
         }
     }
 
-    pub fn debug_add_cursor(&mut self) {
-        self.cursor = Some(Piece::new(PieceKind::J));
+    pub fn add_cursor(&mut self) {
+        if self.bag.is_empty() {
+            self.refill_bag();
+        }
+        let kind = self.bag.pop().expect("Bag is empty");
+        self.cursor = Some(Piece::new(kind));
     }
 
     pub fn cursor_has_hit_bottom(&self) -> bool {
@@ -65,7 +66,15 @@ impl Engine {
     }
 
     pub fn rotate_cursor(&mut self, kind: RotateKind) -> Result<(), ()> {
-        todo!("rotate cursor {:?}", kind);
+        let cursor = self.cursor.as_mut().ok_or(())?;
+        let new_cursor = cursor.rotated_by(kind);
+        match self.matrix.is_clipping(&new_cursor) {
+            true => Err(()),
+            false => {
+                self.cursor = Some(new_cursor);
+                Ok(())
+            }
+        }
     }
 
     pub fn move_cursor(&mut self, kind: MoveKind) -> Result<(), ()> {

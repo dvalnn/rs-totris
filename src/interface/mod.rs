@@ -2,7 +2,7 @@ mod delta_time;
 mod render_traits;
 mod sub_rect;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
@@ -91,6 +91,10 @@ fn game_loop(
     loop {
         delta.update();
 
+        if engine.cursor_info().is_none() {
+            engine.add_cursor();
+        }
+
         for event in events.poll_iter() {
             match event {
                 Event::Quit { .. } => return,
@@ -130,18 +134,18 @@ fn game_loop(
 
         //TODO: clean up this logic into a dedicated function
         {
+            const SOFT_DROP_SPEED_UP: u32 = 20;
+
             tick_timer += delta.get();
             fast_timer += delta.get();
 
             let tick_time = engine.drop_time();
-            let fast_tick_time = tick_time / 20;
+            let fast_tick_time = tick_time / SOFT_DROP_SPEED_UP;
 
             let tick = tick_timer >= tick_time;
             let fast_tick = fast_timer >= fast_tick_time;
 
-            if engine.cursor_info().is_some()
-                && ((soft_drop && fast_tick) || tick)
-            {
+            if (soft_drop && fast_tick) || tick {
                 if engine.cursor_has_hit_bottom() {
                     lock_down = true;
                     engine.place_cursor();
