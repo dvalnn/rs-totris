@@ -1,8 +1,14 @@
 use super::{matrix::Color, Coordinate, Matrix, Offset};
 use cgmath::{EuclideanSpace, Zero};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 #[rustfmt::skip]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
+pub enum RotateKind { Clockwise, CounterClockwise }
+
+#[rustfmt::skip]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter)]
 pub(super) enum Rotation { N, E, S, W }
 
 impl Rotation {
@@ -92,6 +98,24 @@ impl Piece {
             position: self.position + offset,
             ..*self
         }
+    }
+
+    pub(super) fn rotated_by(&self, kind: RotateKind) -> Self {
+        let index = Rotation::iter()
+            .position(|dir| dir == self.rotation)
+            .expect("invalid rotation");
+
+        let index = match kind {
+            RotateKind::Clockwise => index + 1,
+            RotateKind::CounterClockwise => index + 3,
+        };
+
+        let rotation = Rotation::iter()
+            .cycle()
+            .nth(index)
+            .expect("invalid rotation");
+
+        Self { rotation, ..*self }
     }
 
     /// Returns the cells of this [`Piece`].
@@ -251,5 +275,54 @@ mod test {
     ) {
         let cells = piece.cells().expect("Should be a valid S piece");
         assert_eq!(cells, expected);
+    }
+
+    #[rstest]
+    #[case (
+        Piece {
+            kind: Kind::I,
+            position: Offset::zero(),
+            rotation: Rotation::N,
+        },
+        super::RotateKind::Clockwise,
+        Piece {
+            kind: Kind::I,
+            position: Offset::zero(),
+            rotation: Rotation::E,
+        }
+    )]
+    #[case (
+        Piece {
+            kind: Kind::I,
+            position: Offset::zero(),
+            rotation: Rotation::N,
+        },
+        super::RotateKind::CounterClockwise,
+        Piece {
+            kind: Kind::I,
+            position: Offset::zero(),
+            rotation: Rotation::W,
+        }
+    )]
+    #[case (
+        Piece {
+            kind: Kind::I,
+            position: Offset::zero(),
+            rotation: Rotation::S,
+        },
+        super::RotateKind::CounterClockwise,
+        Piece {
+            kind: Kind::I,
+            position: Offset::zero(),
+            rotation: Rotation::E,
+        }
+    )]
+    fn test_rotated_by(
+        #[case] piece: Piece,
+        #[case] kind: super::RotateKind,
+        #[case] expected: Piece,
+    ) {
+        let rotated = piece.rotated_by(kind);
+        assert_eq!(rotated, expected);
     }
 }
