@@ -79,17 +79,19 @@ fn game_loop(
     mut engine: Engine,
     mut canvas: Canvas<Window>,
 ) {
+    let mut hard_drop = false;
     let mut soft_drop = false;
-    let mut lock_down = false;
+    let mut lock_reset = false;
+    let mut lock_moves = 15;
 
-    let mut delta = DeltaTime::new();
+    let mut delta_time = DeltaTime::new();
 
     let mut tick_timer = Duration::default();
     let mut fast_timer = Duration::default();
-    let mut _lock_timer = Duration::default();
+    let mut lock_timer = Duration::default();
 
     loop {
-        delta.update();
+        delta_time.update();
 
         if engine.cursor_info().is_none() {
             engine.add_cursor();
@@ -109,23 +111,29 @@ fn game_loop(
                             soft_drop = true;
                         }
                         Input::HardDrop => {
-                            lock_down = true;
                             engine.hard_drop();
+                            hard_drop = true;
                         }
                         Input::Move(kind) => {
+                            lock_reset = true;
                             let _ = engine.move_cursor(kind);
                         }
                         Input::Rotate(kind) => {
+                            lock_reset = true;
                             let _ = engine.rotate_cursor(kind);
                         }
                     }
                 }
 
                 Event::KeyUp {
-                    keycode: Some(Keycode::Down),
-                    ..
+                    keycode: Some(key), ..
                 } => {
-                    soft_drop = false;
+                    let Ok(input) = Input::try_from(key) else {
+                        continue;
+                    };
+                    if let Input::SoftDrop = input {
+                        soft_drop = false;
+                    }
                 }
 
                 _ => {}
@@ -135,9 +143,12 @@ fn game_loop(
         //TODO: clean up this logic into a dedicated function
         {
             const SOFT_DROP_SPEED_UP: u32 = 20;
+            const LOCK_TIME: Duration = Duration::from_millis(500);
 
-            tick_timer += delta.get();
-            fast_timer += delta.get();
+            let mut check_lines = false;
+
+            tick_timer += delta_time.get();
+            fast_timer += delta_time.get();
 
             let tick_time = engine.drop_time();
             let fast_tick_time = tick_time / SOFT_DROP_SPEED_UP;
@@ -145,12 +156,27 @@ fn game_loop(
             let tick = tick_timer >= tick_time;
             let fast_tick = fast_timer >= fast_tick_time;
 
-            if (soft_drop && fast_tick) || tick {
-                if engine.cursor_has_hit_bottom() {
-                    lock_down = true;
+            if engine.cursor_has_hit_bottom() {
+                lock_timer += delta_time.get();
+
+                if lock_reset && lock_moves > 0 {
+                    lock_timer = Duration::default();
+                    lock_reset = false;
+                    lock_moves -= 1;
+                }
+
+                //TODO: rethink how the hard drop is handled
+                if hard_drop || lock_timer >= LOCK_TIME {
+                    hard_drop = false;
+                    check_lines = true;
                     engine.place_cursor();
-                } else {
+                }
+            } else {
+                lock_timer = Duration::default();
+
+                if (soft_drop && fast_tick) || tick {
                     engine.tick_down();
+                    lock_moves = 15;
                 }
             }
 
@@ -161,11 +187,10 @@ fn game_loop(
             if tick {
                 tick_timer -= tick_time;
             }
-        }
 
-        if lock_down {
-            engine.line_clear(|_| (/*canvas animation*/));
-            lock_down = false;
+            if check_lines {
+                engine.line_clear(|_| (/*canvas animation*/));
+            }
         }
 
         draw(&mut canvas, &engine);

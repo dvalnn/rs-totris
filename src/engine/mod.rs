@@ -106,7 +106,9 @@ impl Engine {
         while let Some(new_cursor) = self.ticked_down_cursor() {
             self.cursor = Some(new_cursor);
         }
-        self.place_cursor()
+
+        //NOTE: Maybe good idea? Involves changing logic in the interface
+        // self.place_cursor()
     }
 
     pub fn drop_time(&self) -> Duration {
