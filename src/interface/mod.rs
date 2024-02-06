@@ -1,6 +1,6 @@
-mod delta_time;
 mod render_traits;
 mod sub_rect;
+mod timing;
 
 use std::time::Duration;
 
@@ -15,9 +15,10 @@ use crate::engine::{
 };
 
 use self::{
-    delta_time::DeltaTime,
     render_traits::ScreenColor,
     sub_rect::{Align, SubRect},
+    timing::DeltaTime,
+    timing::Timer,
 };
 
 const WINDOW_INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
@@ -74,21 +75,34 @@ pub fn run(engine: Engine) {
     game_loop(events, engine, canvas);
 }
 
+#[derive(Default)]
+struct GameState {
+    tick_timer: Timer,
+    fast_timer: Timer,
+    lock_timer: Timer,
+    hard_drop: bool,
+    soft_drop: bool,
+    lock_reset: bool,
+    lock_moves: i32,
+}
+
+impl GameState {
+    const LOCK_TIME: Duration = Duration::from_millis(500);
+    const SOFT_DROP_SPEED_UP: u32 = 20;
+    const LOCK_MOVES: i32 = 15;
+}
+
 fn game_loop(
     mut events: sdl2::EventPump,
     mut engine: Engine,
     mut canvas: Canvas<Window>,
 ) {
-    let mut hard_drop = false;
-    let mut soft_drop = false;
-    let mut lock_reset = false;
-    let mut lock_moves = 15;
-
     let mut delta_time = DeltaTime::new();
-
-    let mut tick_timer = Duration::default();
-    let mut fast_timer = Duration::default();
-    let mut lock_timer = Duration::default();
+    let mut state = GameState {
+        lock_timer: Timer::new(GameState::LOCK_TIME),
+        lock_moves: GameState::LOCK_MOVES,
+        ..Default::default()
+    };
 
     loop {
         delta_time.update();
@@ -108,18 +122,18 @@ fn game_loop(
                     };
                     match input {
                         Input::SoftDrop => {
-                            soft_drop = true;
+                            state.soft_drop = true;
                         }
                         Input::HardDrop => {
                             engine.hard_drop();
-                            hard_drop = true;
+                            state.hard_drop = true;
                         }
                         Input::Move(kind) => {
-                            lock_reset = true;
+                            state.lock_reset = true;
                             let _ = engine.move_cursor(kind);
                         }
                         Input::Rotate(kind) => {
-                            lock_reset = true;
+                            state.lock_reset = true;
                             let _ = engine.rotate_cursor(kind);
                         }
                     }
@@ -132,7 +146,7 @@ fn game_loop(
                         continue;
                     };
                     if let Input::SoftDrop = input {
-                        soft_drop = false;
+                        state.soft_drop = false;
                     }
                 }
 
@@ -142,50 +156,39 @@ fn game_loop(
 
         //TODO: clean up this logic into a dedicated function
         {
-            const SOFT_DROP_SPEED_UP: u32 = 20;
-            const LOCK_TIME: Duration = Duration::from_millis(500);
-
             let mut check_lines = false;
 
-            tick_timer += delta_time.get();
-            fast_timer += delta_time.get();
-
             let tick_time = engine.drop_time();
-            let fast_tick_time = tick_time / SOFT_DROP_SPEED_UP;
+            let fast_tick_time = tick_time / GameState::SOFT_DROP_SPEED_UP;
+            state.tick_timer.set_new_target(tick_time);
+            state.fast_timer.set_new_target(fast_tick_time);
 
-            let tick = tick_timer >= tick_time;
-            let fast_tick = fast_timer >= fast_tick_time;
+            state.tick_timer.update(delta_time);
+            state.fast_timer.update(delta_time);
+            state.lock_timer.update(delta_time);
 
             if engine.cursor_has_hit_bottom() {
-                lock_timer += delta_time.get();
-
-                if lock_reset && lock_moves > 0 {
-                    lock_timer = Duration::default();
-                    lock_reset = false;
-                    lock_moves -= 1;
+                if state.lock_reset && state.lock_moves > 0 {
+                    state.lock_timer.reset();
+                    state.lock_reset = false;
+                    state.lock_moves -= 1;
                 }
 
                 //TODO: rethink how the hard drop is handled
-                if hard_drop || lock_timer >= LOCK_TIME {
-                    hard_drop = false;
+                if state.hard_drop || state.lock_timer.just_finished() {
+                    state.hard_drop = false;
                     check_lines = true;
                     engine.place_cursor();
                 }
             } else {
-                lock_timer = Duration::default();
+                state.lock_timer.reset();
 
-                if (soft_drop && fast_tick) || tick {
+                let tick = state.tick_timer.just_finished();
+                let fast_tick = state.fast_timer.just_finished();
+                if (state.soft_drop && fast_tick) || tick {
                     engine.tick_down();
-                    lock_moves = 15;
+                    state.lock_moves = 15;
                 }
-            }
-
-            if fast_tick {
-                fast_timer -= fast_tick_time;
-            }
-
-            if tick {
-                tick_timer -= tick_time;
             }
 
             if check_lines {
