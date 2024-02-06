@@ -1,8 +1,7 @@
+mod game_state;
 mod render_traits;
 mod sub_rect;
 mod timing;
-
-use std::time::Duration;
 
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
@@ -10,195 +9,19 @@ use sdl2::{
     video::Window,
 };
 
-use crate::engine::{
-    Color as EngineColor, Coordinate, Engine, Matrix, MoveKind, RotateKind,
-};
+use crate::engine::{Color as EngineColor, Coordinate, Engine, Matrix};
+pub use crate::engine::{MoveKind, RotateKind};
 
 use self::{
+    game_state::GameState,
     render_traits::ScreenColor,
     sub_rect::{Align, SubRect},
     timing::DeltaTime,
-    timing::Timer,
 };
 
 const WINDOW_INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
 const PLACEHOLDER: Color = Color::RGB(0x66, 0x77, 0x77);
-
-#[derive(Debug, Clone, Copy)]
-struct Tick;
-
-#[derive(Debug, Clone, Copy)]
-struct LockTick;
-
-#[derive(Debug, Clone, Copy)]
-struct SoftDropTick;
-
-pub fn run(engine: Engine) {
-    let sdl = sdl2::init().expect("SDL2 initialization failed");
-
-    let event_subsystem =
-        sdl.event().expect("SDL2 event subsystem aquisition failed");
-
-    event_subsystem
-        .register_custom_event::<Tick>()
-        .expect("Failed to register custom event");
-
-    event_subsystem
-        .register_custom_event::<LockTick>()
-        .expect("Failed to register custom event");
-
-    event_subsystem
-        .register_custom_event::<SoftDropTick>()
-        .expect("Failed to register custom event");
-
-    let canvas = {
-        let video =
-            sdl.video().expect("SDL2 video subsystem aquisition failed");
-
-        let window = video
-            .window("rs-totris", WINDOW_INIT_SIZE.x, WINDOW_INIT_SIZE.y)
-            .position_centered()
-            .resizable()
-            .build()
-            .expect("Window creation failed");
-
-        window
-            .into_canvas()
-            .accelerated()
-            .present_vsync()
-            .build()
-            .expect("Canvas creation failed")
-    };
-
-    let events = sdl.event_pump().expect("Event pump aquisition failed");
-    game_loop(events, engine, canvas);
-}
-
-#[derive(Default)]
-struct GameState {
-    tick_timer: Timer,
-    fast_timer: Timer,
-    lock_timer: Timer,
-    hard_drop: bool,
-    soft_drop: bool,
-    lock_reset: bool,
-    lock_moves: i32,
-}
-
-impl GameState {
-    const LOCK_TIME: Duration = Duration::from_millis(500);
-    const SOFT_DROP_SPEED_UP: u32 = 20;
-    const LOCK_MOVES: i32 = 15;
-}
-
-fn game_loop(
-    mut events: sdl2::EventPump,
-    mut engine: Engine,
-    mut canvas: Canvas<Window>,
-) {
-    let mut delta_time = DeltaTime::new();
-    let mut state = GameState {
-        lock_timer: Timer::new(GameState::LOCK_TIME),
-        lock_moves: GameState::LOCK_MOVES,
-        ..Default::default()
-    };
-
-    loop {
-        delta_time.update();
-
-        if engine.cursor_info().is_none() {
-            engine.add_cursor();
-        }
-
-        for event in events.poll_iter() {
-            match event {
-                Event::Quit { .. } => return,
-                Event::KeyDown {
-                    keycode: Some(key), ..
-                } => {
-                    let Ok(input) = Input::try_from(key) else {
-                        continue;
-                    };
-                    match input {
-                        Input::SoftDrop => {
-                            state.soft_drop = true;
-                        }
-                        Input::HardDrop => {
-                            engine.hard_drop();
-                            state.hard_drop = true;
-                        }
-                        Input::Move(kind) => {
-                            state.lock_reset = true;
-                            let _ = engine.move_cursor(kind);
-                        }
-                        Input::Rotate(kind) => {
-                            state.lock_reset = true;
-                            let _ = engine.rotate_cursor(kind);
-                        }
-                    }
-                }
-
-                Event::KeyUp {
-                    keycode: Some(key), ..
-                } => {
-                    let Ok(input) = Input::try_from(key) else {
-                        continue;
-                    };
-                    if let Input::SoftDrop = input {
-                        state.soft_drop = false;
-                    }
-                }
-
-                _ => {}
-            }
-        }
-
-        //TODO: clean up this logic into a dedicated function
-        {
-            let mut check_lines = false;
-
-            let tick_time = engine.drop_time();
-            let fast_tick_time = tick_time / GameState::SOFT_DROP_SPEED_UP;
-            state.tick_timer.set_new_target(tick_time);
-            state.fast_timer.set_new_target(fast_tick_time);
-
-            state.tick_timer.update(delta_time);
-            state.fast_timer.update(delta_time);
-            state.lock_timer.update(delta_time);
-
-            if engine.cursor_has_hit_bottom() {
-                if state.lock_reset && state.lock_moves > 0 {
-                    state.lock_timer.reset();
-                    state.lock_reset = false;
-                    state.lock_moves -= 1;
-                }
-
-                //TODO: rethink how the hard drop is handled
-                if state.hard_drop || state.lock_timer.just_finished() {
-                    state.hard_drop = false;
-                    check_lines = true;
-                    engine.place_cursor();
-                }
-            } else {
-                state.lock_timer.reset();
-
-                let tick = state.tick_timer.just_finished();
-                let fast_tick = state.fast_timer.just_finished();
-                if (state.soft_drop && fast_tick) || tick {
-                    engine.tick_down();
-                    state.lock_moves = 15;
-                }
-            }
-
-            if check_lines {
-                engine.line_clear(|_| (/*canvas animation*/));
-            }
-        }
-
-        draw(&mut canvas, &engine);
-    }
-}
 
 enum Input {
     Rotate(RotateKind),
@@ -221,6 +44,105 @@ impl TryFrom<Keycode> for Input {
 
             _ => return Err(()),
         })
+    }
+}
+
+pub fn run(engine: Engine) {
+    let sdl = sdl2::init().expect("SDL2 initialization failed");
+
+    let canvas = {
+        let video =
+            sdl.video().expect("SDL2 video subsystem aquisition failed");
+
+        let window = video
+            .window("rs-totris", WINDOW_INIT_SIZE.x, WINDOW_INIT_SIZE.y)
+            .position_centered()
+            .resizable()
+            .build()
+            .expect("Window creation failed");
+
+        window
+            .into_canvas()
+            .accelerated()
+            .present_vsync()
+            .build()
+            .expect("Canvas creation failed")
+    };
+
+    let events = sdl.event_pump().expect("Event pump aquisition failed");
+
+    game_loop(events, engine, canvas);
+}
+
+fn game_loop(
+    mut events: sdl2::EventPump,
+    mut engine: Engine,
+    mut canvas: Canvas<Window>,
+) {
+    //TODO: Move engine into game state?
+    //      Make delta time global singleton?
+
+    let mut delta_time = DeltaTime::new();
+    let mut state = GameState::new();
+
+    loop {
+        delta_time.update();
+
+        if engine.cursor_info().is_none() {
+            engine.add_cursor();
+        }
+
+        for event in events.poll_iter() {
+            match dbg!(event) {
+                Event::Quit { .. } => return,
+
+                Event::KeyDown {
+                    keycode: Some(key),
+                    repeat: false,
+                    ..
+                } => {
+                    let Ok(input) = Input::try_from(key) else {
+                        continue;
+                    };
+                    match input {
+                        Input::SoftDrop => {
+                            state.soft_drop = true;
+                        }
+
+                        Input::HardDrop => {
+                            state.hard_drop = true;
+                        }
+
+                        //TODO: Handle auto repeat
+                        Input::Move(kind) => {
+                            state.move_cursor(&mut engine, kind);
+                        }
+
+                        Input::Rotate(kind) => {
+                            state.rotate_cursor(&mut engine, kind);
+                        }
+                    }
+                }
+
+                Event::KeyUp {
+                    keycode: Some(key), ..
+                } => {
+                    let Ok(input) = Input::try_from(key) else {
+                        continue;
+                    };
+
+                    if let Input::SoftDrop = input {
+                        state.soft_drop = false;
+                    }
+                }
+
+                _ => {}
+            }
+        }
+
+        state.update(&mut engine, delta_time);
+
+        draw(&mut canvas, &engine);
     }
 }
 
