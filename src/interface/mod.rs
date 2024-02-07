@@ -72,9 +72,6 @@ fn game_loop(
     mut game: Game,
     mut canvas: Canvas<Window>,
 ) {
-    //TODO: Move engine into game state?
-    //      Make delta time global singleton?
-
     let mut delta_time = DeltaTime::new();
 
     loop {
@@ -113,8 +110,8 @@ fn game_loop(
         }
 
         game.update(delta_time);
-
         draw(&mut canvas, &game.engine);
+        println!("FPS: {}", delta_time.fps());
     }
 }
 
