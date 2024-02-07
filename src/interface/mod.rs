@@ -74,6 +74,7 @@ fn game_loop(
 ) {
     let mut delta_time = DeltaTime::new();
 
+    // delta_time -> inputs -> game_logic -> rendering
     loop {
         delta_time.update();
 
