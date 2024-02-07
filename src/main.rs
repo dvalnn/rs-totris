@@ -2,6 +2,7 @@
 #![feature(array_chunks, is_sorted)]
 
 mod engine;
+mod game;
 mod interface;
 
 use engine::Engine;

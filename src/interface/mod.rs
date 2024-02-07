@@ -1,7 +1,5 @@
-mod game_state;
 mod render_traits;
 mod sub_rect;
-mod timing;
 
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
@@ -9,26 +7,20 @@ use sdl2::{
     video::Window,
 };
 
-use crate::engine::{Color as EngineColor, Coordinate, Engine, Matrix};
 pub use crate::engine::{MoveKind, RotateKind};
+use crate::{
+    engine::{Color as EngineColor, Coordinate, Engine, Matrix},
+    game::{DeltaTime, GameState, Input},
+};
 
 use self::{
-    game_state::GameState,
     render_traits::ScreenColor,
     sub_rect::{Align, SubRect},
-    timing::DeltaTime,
 };
 
 const WINDOW_INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
 const PLACEHOLDER: Color = Color::RGB(0x66, 0x77, 0x77);
-
-enum Input {
-    Rotate(RotateKind),
-    Move(MoveKind),
-    HardDrop,
-    SoftDrop,
-}
 
 impl TryFrom<Keycode> for Input {
     type Error = ();
@@ -88,12 +80,9 @@ fn game_loop(
     loop {
         delta_time.update();
 
-        if engine.cursor_info().is_none() {
-            engine.add_cursor();
-        }
-
         for event in events.poll_iter() {
-            match dbg!(event) {
+            println!("-- Event!");
+            match event {
                 Event::Quit { .. } => return,
 
                 Event::KeyDown {
@@ -140,6 +129,7 @@ fn game_loop(
             }
         }
 
+        println!("-- Update!");
         state.update(&mut engine, delta_time);
 
         draw(&mut canvas, &engine);

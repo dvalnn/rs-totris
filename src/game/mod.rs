@@ -1,11 +1,30 @@
+mod timing;
+
+use crate::engine::{MoveKind, RotateKind};
+
+pub struct InputAction {
+    pub kind: Input,
+    pub action: KeyAction,
+}
+
+pub enum KeyAction {
+    Press,
+    Release,
+}
+
+pub enum Input {
+    Rotate(RotateKind),
+    Move(MoveKind),
+    HardDrop,
+    SoftDrop,
+}
+
 use std::time::Duration;
 
 use crate::engine::Engine;
 
-use super::{
-    timing::{DeltaTime, Timer},
-    MoveKind, RotateKind,
-};
+pub use self::timing::DeltaTime;
+pub use self::timing::Timer;
 
 //NOTE: Maybe move engine into GameState?
 #[derive(Default)]
@@ -21,12 +40,12 @@ pub(super) struct GameState {
     lock_reset: bool,
     lock_moves: i32,
 
-    pub(super) hard_drop: bool,
-    pub(super) soft_drop: bool,
-    pub(super) move_left: bool,
-    pub(super) move_right: bool,
-    pub(super) rotate_left: bool,
-    pub(super) rotate_right: bool,
+    pub(crate) hard_drop: bool,
+    pub(crate) soft_drop: bool,
+    pub(crate) move_left: bool,
+    pub(crate) move_right: bool,
+    pub(crate) rotate_left: bool,
+    pub(crate) rotate_right: bool,
 }
 
 impl GameState {
@@ -70,6 +89,14 @@ impl GameState {
         engine: &mut Engine,
         delta_time: DeltaTime,
     ) {
+        //input handling
+        //
+        //game logic update
+
+        if engine.cursor_info().is_none() {
+            engine.add_cursor();
+        }
+
         let mut check_lines = false;
         self.update_timers(engine.drop_time(), delta_time);
 
