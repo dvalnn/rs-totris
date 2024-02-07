@@ -111,7 +111,7 @@ fn game_loop(
 
         game.update(delta_time);
         draw(&mut canvas, &game.engine);
-        println!("FPS: {}", delta_time.fps());
+        // println!("FPS: {}", delta_time.fps());
     }
 }
 
