@@ -23,6 +23,10 @@ impl DeltaTime {
     pub fn get(&self) -> Duration {
         self.time
     }
+
+    pub fn fps(&self) -> usize {
+        self.time.as_secs_f64().recip().round() as usize
+    }
 }
 
 impl Default for DeltaTime {
@@ -62,7 +66,7 @@ impl Timer {
         }
     }
 
-    pub fn set_new_target(&mut self, target: Duration) {
+    pub fn set_target(&mut self, target: Duration) {
         self.target = target;
     }
 
