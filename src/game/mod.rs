@@ -34,6 +34,8 @@ pub enum Input {
 
 #[derive(Default)]
 pub struct Game {
+    // TODO: maybe re-expose necessary engine methods
+    //       instead of having the engine public
     pub engine: Engine,
 
     tick_timer: Timer,
@@ -54,9 +56,9 @@ pub struct Game {
 }
 
 impl Game {
-    pub const LOCK_TIME: Duration = Duration::from_millis(500);
-    pub const SOFT_DROP_SPEED_UP: u32 = 20;
     pub const LOCK_MOVES: i32 = 15;
+    pub const SPEED_MULT: u32 = 20;
+    pub const LOCK_TIME: Duration = Duration::from_millis(500);
     pub const FIRST_MOVE_DELAY: Duration = Duration::from_millis(300);
     pub const MOVE_REPEAT_DELAY: Duration = Duration::from_millis(35);
 
@@ -118,26 +120,30 @@ impl Game {
     }
 
     fn update_timers(&mut self, tick_time: Duration, delta_time: DeltaTime) {
-        self.tick_timer.set_new_target(tick_time);
-        self.fast_timer
-            .set_new_target(tick_time / Self::SOFT_DROP_SPEED_UP);
+        self.tick_timer.set_target(tick_time);
+        self.fast_timer.set_target(tick_time / Self::SPEED_MULT);
+
         self.tick_timer.update(delta_time);
         self.fast_timer.update(delta_time);
         self.lock_timer.update(delta_time);
         self.move_repeat_timer.update(delta_time);
     }
 
+    //TODO: Take a second look at this function to
+    //      see if it can be simplified / split up
+    //
+    //TODO: Return a struct with game state info
+    //      to be used for rendering / animation
+    //      networking / etc.
     pub fn update(&mut self, delta_time: DeltaTime) {
         if self.engine.cursor_info().is_none() {
             self.engine.add_cursor();
         }
 
         if self.repeat_move {
-            self.move_repeat_timer
-                .set_new_target(Self::MOVE_REPEAT_DELAY);
+            self.move_repeat_timer.set_target(Self::MOVE_REPEAT_DELAY);
         } else {
-            self.move_repeat_timer
-                .set_new_target(Self::FIRST_MOVE_DELAY);
+            self.move_repeat_timer.set_target(Self::FIRST_MOVE_DELAY);
         }
 
         self.update_timers(self.engine.drop_time(), delta_time);
