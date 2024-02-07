@@ -6,16 +6,18 @@ use std::{option::Option, time::Duration};
 
 use cgmath::EuclideanSpace;
 
-use piece::{Kind as PieceKind, Piece};
+use self::piece::{Kind as PieceKind, Piece};
 
-pub use matrix::{CellIter, Color, Matrix};
-pub use piece::RotateKind;
+pub use self::{
+    matrix::{CellIter, Color, Matrix},
+    piece::RotateKind,
+};
 
 pub type Coordinate = cgmath::Point2<usize>;
 pub type Offset = cgmath::Vector2<isize>;
 
 #[rustfmt::skip]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MoveKind { Left, Right }
 
 impl MoveKind {
@@ -33,6 +35,12 @@ pub struct Engine {
     cursor: Option<Piece>,
     level: u8,
     drop_timer: Duration,
+}
+
+impl Default for Engine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Engine {

@@ -7,16 +7,17 @@ use sdl2::{
     video::Window,
 };
 
-pub use crate::engine::{MoveKind, RotateKind};
 use crate::{
     engine::{Color as EngineColor, Coordinate, Engine, Matrix},
-    game::{DeltaTime, GameState, Input},
+    game::{DeltaTime, Game, Input, InputAction, KeyAction},
 };
 
 use self::{
     render_traits::ScreenColor,
     sub_rect::{Align, SubRect},
 };
+
+pub use crate::engine::{MoveKind, RotateKind};
 
 const WINDOW_INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
@@ -39,7 +40,7 @@ impl TryFrom<Keycode> for Input {
     }
 }
 
-pub fn run(engine: Engine) {
+pub fn run(game: Game) {
     let sdl = sdl2::init().expect("SDL2 initialization failed");
 
     let canvas = {
@@ -63,25 +64,23 @@ pub fn run(engine: Engine) {
 
     let events = sdl.event_pump().expect("Event pump aquisition failed");
 
-    game_loop(events, engine, canvas);
+    game_loop(events, game, canvas);
 }
 
 fn game_loop(
     mut events: sdl2::EventPump,
-    mut engine: Engine,
+    mut game: Game,
     mut canvas: Canvas<Window>,
 ) {
     //TODO: Move engine into game state?
     //      Make delta time global singleton?
 
     let mut delta_time = DeltaTime::new();
-    let mut state = GameState::new();
 
     loop {
         delta_time.update();
 
         for event in events.poll_iter() {
-            println!("-- Event!");
             match event {
                 Event::Quit { .. } => return,
 
@@ -90,49 +89,32 @@ fn game_loop(
                     repeat: false,
                     ..
                 } => {
-                    let Ok(input) = Input::try_from(key) else {
-                        continue;
+                    if let Ok(input) = Input::try_from(key) {
+                        game.handle_input(dbg!(InputAction::new(
+                            input,
+                            KeyAction::Press,
+                        )));
                     };
-                    match input {
-                        Input::SoftDrop => {
-                            state.soft_drop = true;
-                        }
-
-                        Input::HardDrop => {
-                            state.hard_drop = true;
-                        }
-
-                        //TODO: Handle auto repeat
-                        Input::Move(kind) => {
-                            state.move_cursor(&mut engine, kind);
-                        }
-
-                        Input::Rotate(kind) => {
-                            state.rotate_cursor(&mut engine, kind);
-                        }
-                    }
                 }
 
                 Event::KeyUp {
                     keycode: Some(key), ..
                 } => {
-                    let Ok(input) = Input::try_from(key) else {
-                        continue;
+                    if let Ok(input) = Input::try_from(key) {
+                        game.handle_input(dbg!(InputAction::new(
+                            input,
+                            KeyAction::Release,
+                        )));
                     };
-
-                    if let Input::SoftDrop = input {
-                        state.soft_drop = false;
-                    }
                 }
 
                 _ => {}
             }
         }
 
-        println!("-- Update!");
-        state.update(&mut engine, delta_time);
+        game.update(delta_time);
 
-        draw(&mut canvas, &engine);
+        draw(&mut canvas, &game.engine);
     }
 }
 

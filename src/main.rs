@@ -5,8 +5,9 @@ mod engine;
 mod game;
 mod interface;
 
-use engine::Engine;
+use crate::{engine::Engine, game::Game};
+
 fn main() {
     println!("Hello, world!");
-    interface::run(Engine::new());
+    interface::run(Game::new(Engine::new()));
 }
