@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Mutex};
 
+use cgmath::Zero;
 use once_cell::sync::Lazy;
 
 use super::{piece::Rotation, Offset, PieceKind, RotateKind};
@@ -13,42 +14,43 @@ struct StdMapKey(Rotation, u8);
 
 //NOTE: SRS+ Clockwise Kick Table for J, L, S, T, Z Pieces
 //      Counter-clockwise kick are the same, but with the opposite sign
-static STD_KICKS: Lazy<Mutex<HashMap<StdMapKey, Offset>>> = Lazy::new(|| {
-    use Rotation::*;
+static SRS_STD_KICKS: Lazy<Mutex<HashMap<StdMapKey, Offset>>> =
+    Lazy::new(|| {
+        use Rotation::*;
 
-    let mut m = HashMap::new();
-    //N -> E | 0 -> 1 = -(E -> N | 1 -> 0)
-    m.insert(StdMapKey(N, 0), Offset::new(-1, 0));
-    m.insert(StdMapKey(N, 1), Offset::new(-1, 1));
-    m.insert(StdMapKey(N, 2), Offset::new(0, -2));
-    m.insert(StdMapKey(N, 3), Offset::new(-1, -2));
+        let mut m = HashMap::new();
+        //N -> E | 0 -> 1 = -(E -> N | 1 -> 0)
+        m.insert(StdMapKey(N, 0), Offset::new(-1, 0));
+        m.insert(StdMapKey(N, 1), Offset::new(-1, 1));
+        m.insert(StdMapKey(N, 2), Offset::new(0, -2));
+        m.insert(StdMapKey(N, 3), Offset::new(-1, -2));
 
-    //E -> S | 1 -> 2
-    m.insert(StdMapKey(E, 0), Offset::new(1, 0));
-    m.insert(StdMapKey(E, 1), Offset::new(1, -1));
-    m.insert(StdMapKey(E, 2), Offset::new(0, 2));
-    m.insert(StdMapKey(E, 3), Offset::new(1, 2));
+        //E -> S | 1 -> 2
+        m.insert(StdMapKey(E, 0), Offset::new(1, 0));
+        m.insert(StdMapKey(E, 1), Offset::new(1, -1));
+        m.insert(StdMapKey(E, 2), Offset::new(0, 2));
+        m.insert(StdMapKey(E, 3), Offset::new(1, 2));
 
-    //S -> W | 2 -> 3
-    m.insert(StdMapKey(S, 0), Offset::new(1, 0));
-    m.insert(StdMapKey(S, 1), Offset::new(1, 1));
-    m.insert(StdMapKey(S, 2), Offset::new(0, -2));
-    m.insert(StdMapKey(S, 3), Offset::new(1, -2));
+        //S -> W | 2 -> 3
+        m.insert(StdMapKey(S, 0), Offset::new(1, 0));
+        m.insert(StdMapKey(S, 1), Offset::new(1, 1));
+        m.insert(StdMapKey(S, 2), Offset::new(0, -2));
+        m.insert(StdMapKey(S, 3), Offset::new(1, -2));
 
-    //W -> N | 3 -> 0
-    m.insert(StdMapKey(W, 0), Offset::new(-1, 0));
-    m.insert(StdMapKey(W, 1), Offset::new(-1, -1));
-    m.insert(StdMapKey(W, 2), Offset::new(0, 2));
-    m.insert(StdMapKey(W, 3), Offset::new(-1, 2));
+        //W -> N | 3 -> 0
+        m.insert(StdMapKey(W, 0), Offset::new(-1, 0));
+        m.insert(StdMapKey(W, 1), Offset::new(-1, -1));
+        m.insert(StdMapKey(W, 2), Offset::new(0, 2));
+        m.insert(StdMapKey(W, 3), Offset::new(-1, 2));
 
-    Mutex::new(m)
-});
+        Mutex::new(m)
+    });
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 struct IMapKey(Rotation, RotateKind, u8);
 
 //NOTE: SRS+ Kick Table for I piece with simetric I piece rotation
-static I_KICKS: Lazy<Mutex<HashMap<IMapKey, Offset>>> = Lazy::new(|| {
+static SRS_I_KICKS: Lazy<Mutex<HashMap<IMapKey, Offset>>> = Lazy::new(|| {
     use RotateKind::*;
     use Rotation::*;
 
@@ -127,6 +129,7 @@ impl SrsPlus {
 
     pub fn get_kicks(&self) -> Vec<Offset> {
         match self.piece_kind {
+            PieceKind::O => vec![Offset::zero()],
             PieceKind::I => self.get_i_kicks(),
             _ => self.get_std_kicks(),
         }
@@ -142,7 +145,7 @@ impl SrsPlus {
         }
 
         let mut kicks = Vec::with_capacity(Self::KICK_COUNT as usize);
-        let map = STD_KICKS.lock().unwrap();
+        let map = SRS_STD_KICKS.lock().unwrap();
         for i in 0..Self::KICK_COUNT {
             let key = StdMapKey(rotation, i);
             let kick = map.get(&key).unwrap();
@@ -153,7 +156,7 @@ impl SrsPlus {
 
     fn get_i_kicks(&self) -> Vec<Offset> {
         let mut kicks = Vec::with_capacity(Self::KICK_COUNT as usize);
-        let map = I_KICKS.lock().unwrap();
+        let map = SRS_I_KICKS.lock().unwrap();
         for i in 0..Self::KICK_COUNT {
             let key = IMapKey(self.rotation, self.rotate_kind, i);
             let kick = map.get(&key).unwrap();
