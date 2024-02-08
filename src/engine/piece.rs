@@ -86,9 +86,15 @@ impl Piece {
         Offset::new((Matrix::WIDTH / 2) as isize, Matrix::HEIGHT as isize);
 
     pub fn new(kind: Kind) -> Self {
+        //TODO: look into integrating this with the Kind cells array
+        let spawn_offset = match kind {
+            Kind::I | Kind::O => Offset::new(-1, 0),
+            _ => Offset::zero(),
+        };
+
         Piece {
             kind,
-            position: Self::SPAWN_POSITION,
+            position: Self::SPAWN_POSITION + spawn_offset,
             rotation: Rotation::N,
         }
     }
