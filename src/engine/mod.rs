@@ -8,7 +8,7 @@ use std::{option::Option, time::Duration};
 
 use cgmath::EuclideanSpace;
 
-use self::{kick_tables::Kick, piece::Piece};
+use self::piece::Piece;
 
 pub use self::{
     matrix::{CellIter, Color, Matrix},
@@ -78,12 +78,12 @@ impl Engine {
     pub fn rotate_cursor(
         &mut self,
         kind: RotateKind,
-        kick: Option<impl Kick>,
+        kick: Option<Offset>,
     ) -> Result<(), ()> {
         let cursor = self.cursor.as_mut().ok_or(())?;
         let mut new_cursor = cursor.rotated_by(kind);
         if let Some(kick) = kick {
-            new_cursor = new_cursor.moved_by(kick.offset());
+            new_cursor = new_cursor.moved_by(kick);
         }
         match self.matrix.is_clipping(&new_cursor) {
             true => Err(()),
@@ -124,7 +124,7 @@ impl Engine {
             self.cursor = Some(new_cursor);
         }
 
-        //NOTE: Maybe good idea? Involves changing logic in the interface
+        //NOTE: Maybe good idea? Involves changing logic in the game module
         // self.place_cursor()
     }
 
@@ -192,10 +192,12 @@ impl Engine {
     }
 
     pub(crate) fn cursor_kind(&self) -> PieceKind {
-        todo!()
+        let cursor = self.cursor.as_ref().expect("No cursor");
+        cursor.kind
     }
 
     pub(crate) fn cursor_rotation(&self) -> piece::Rotation {
-        todo!()
+        let cursor = self.cursor.as_ref().expect("No cursor");
+        cursor.rotation
     }
 }

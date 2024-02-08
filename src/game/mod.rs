@@ -96,18 +96,28 @@ impl Game {
         }
     }
 
-    fn rotate_cursor(&mut self, rotation: RotateKind) {
-        // let kick = SrsPlus::Kick1(
-        //     self.engine.cursor_kind(),
-        //     self.engine.cursor_rotation(),
-        //     rotation,
-        // );
-        //
-        let kick = SrsPlus::Kick1;
+    // TODO: Have this return if the rotation was successful
+    fn rotate_cursor(&mut self, rotate_kind: RotateKind) {
+        let kick_table = SrsPlus::new(
+            self.engine.cursor_kind(),
+            self.engine.cursor_rotation(),
+            rotate_kind,
+        );
 
-        match self.engine.rotate_cursor(rotation, Some(kick)) {
+        match self.engine.rotate_cursor(rotate_kind, None) {
             Ok(_) => self.lock_reset = true,
-            Err(_) => todo!(),
+            Err(_) => {
+                for kick in kick_table.get_kicks() {
+                    if self
+                        .engine
+                        .rotate_cursor(rotate_kind, Some(kick))
+                        .is_ok()
+                    {
+                        self.lock_reset = true;
+                        break;
+                    }
+                }
+            }
         }
     }
 

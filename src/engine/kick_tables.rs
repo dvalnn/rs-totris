@@ -8,68 +8,185 @@ pub trait Kick {
     fn offset(&self) -> Offset;
 }
 
-pub enum SrsPlus {
-    Kick1,
-    Kick2,
-    Kick3,
-    Kick4,
-}
+#[derive(Clone, Hash, PartialEq, Eq)]
+struct StdMapKey(Rotation, u8);
+
+//NOTE: SRS+ Clockwise Kick Table for J, L, S, T, Z Pieces
+//      Counter-clockwise kick are the same, but with the opposite sign
+static STD_KICKS: Lazy<Mutex<HashMap<StdMapKey, Offset>>> = Lazy::new(|| {
+    use Rotation::*;
+
+    let mut m = HashMap::new();
+    //N -> E | 0 -> 1 = -(E -> N | 1 -> 0)
+    m.insert(StdMapKey(N, 0), Offset::new(-1, 0));
+    m.insert(StdMapKey(N, 1), Offset::new(-1, 1));
+    m.insert(StdMapKey(N, 2), Offset::new(0, -2));
+    m.insert(StdMapKey(N, 3), Offset::new(-1, -2));
+
+    //E -> S | 1 -> 2
+    m.insert(StdMapKey(E, 0), Offset::new(1, 0));
+    m.insert(StdMapKey(E, 1), Offset::new(1, -1));
+    m.insert(StdMapKey(E, 2), Offset::new(0, 2));
+    m.insert(StdMapKey(E, 3), Offset::new(1, 2));
+
+    //S -> W | 2 -> 3
+    m.insert(StdMapKey(S, 0), Offset::new(1, 0));
+    m.insert(StdMapKey(S, 1), Offset::new(1, 1));
+    m.insert(StdMapKey(S, 2), Offset::new(0, -2));
+    m.insert(StdMapKey(S, 3), Offset::new(1, -2));
+
+    //W -> N | 3 -> 0
+    m.insert(StdMapKey(W, 0), Offset::new(-1, 0));
+    m.insert(StdMapKey(W, 1), Offset::new(-1, -1));
+    m.insert(StdMapKey(W, 2), Offset::new(0, 2));
+    m.insert(StdMapKey(W, 3), Offset::new(-1, 2));
+
+    Mutex::new(m)
+});
 
 #[derive(Clone, Hash, PartialEq, Eq)]
-enum KickType {
-    Standard,
-    IPiece,
+struct IMapKey(Rotation, RotateKind, u8);
+
+//NOTE: SRS+ Kick Table for I piece with simetric I piece rotation
+static I_KICKS: Lazy<Mutex<HashMap<IMapKey, Offset>>> = Lazy::new(|| {
+    use RotateKind::*;
+    use Rotation::*;
+
+    let mut m = HashMap::new();
+    //N -> E | 0 -> 1
+    m.insert(IMapKey(N, Clockwise, 0), Offset::new(-2, 0));
+    m.insert(IMapKey(N, Clockwise, 1), Offset::new(1, 0));
+    m.insert(IMapKey(N, Clockwise, 2), Offset::new(1, 2));
+    m.insert(IMapKey(N, Clockwise, 3), Offset::new(-2, -1));
+
+    //N -> W | 0 -> 3
+    m.insert(IMapKey(N, CounterClockwise, 0), Offset::new(2, 0));
+    m.insert(IMapKey(N, CounterClockwise, 1), Offset::new(-1, 0));
+    m.insert(IMapKey(N, CounterClockwise, 2), Offset::new(-1, 2));
+    m.insert(IMapKey(N, CounterClockwise, 3), Offset::new(2, -1));
+
+    //S -> W | 2 -> 3
+    m.insert(IMapKey(S, Clockwise, 0), Offset::new(2, 0));
+    m.insert(IMapKey(S, Clockwise, 1), Offset::new(-1, 0));
+    m.insert(IMapKey(S, Clockwise, 2), Offset::new(2, 1));
+    m.insert(IMapKey(S, Clockwise, 3), Offset::new(-1, -1));
+
+    //S -> E | 2 -> 1
+    m.insert(IMapKey(S, CounterClockwise, 0), Offset::new(-2, 0));
+    m.insert(IMapKey(S, CounterClockwise, 1), Offset::new(1, 0));
+    m.insert(IMapKey(S, CounterClockwise, 2), Offset::new(-2, 1));
+    m.insert(IMapKey(S, CounterClockwise, 3), Offset::new(1, -1));
+
+    //E -> S | 1 -> S
+    m.insert(IMapKey(E, Clockwise, 0), Offset::new(-1, 0));
+    m.insert(IMapKey(E, Clockwise, 1), Offset::new(2, 0));
+    m.insert(IMapKey(E, Clockwise, 2), Offset::new(-1, 2));
+    m.insert(IMapKey(E, Clockwise, 3), Offset::new(2, -1));
+
+    //E -> N | 1 -> 0
+    m.insert(IMapKey(E, CounterClockwise, 0), Offset::new(2, 0));
+    m.insert(IMapKey(E, CounterClockwise, 1), Offset::new(-1, 0));
+    m.insert(IMapKey(E, CounterClockwise, 2), Offset::new(2, 1));
+    m.insert(IMapKey(E, CounterClockwise, 3), Offset::new(-1, -2));
+
+    //W -> N | 3 -> 0
+    m.insert(IMapKey(W, Clockwise, 0), Offset::new(-2, 0));
+    m.insert(IMapKey(W, Clockwise, 1), Offset::new(1, 0));
+    m.insert(IMapKey(W, Clockwise, 2), Offset::new(-2, 1));
+    m.insert(IMapKey(W, Clockwise, 3), Offset::new(1, -2));
+
+    //W -> S | 3 -> 2
+    m.insert(IMapKey(W, CounterClockwise, 0), Offset::new(1, 0));
+    m.insert(IMapKey(W, CounterClockwise, 1), Offset::new(-2, 0));
+    m.insert(IMapKey(W, CounterClockwise, 2), Offset::new(1, 2));
+    m.insert(IMapKey(W, CounterClockwise, 3), Offset::new(-2, -1));
+
+    Mutex::new(m)
+});
+
+pub struct SrsPlus {
+    piece_kind: PieceKind,
+    rotation: Rotation,
+    rotate_kind: RotateKind,
 }
-
-#[derive(Clone, Hash, PartialEq, Eq)]
-struct SrsKickKey(KickType, Rotation, u8);
-
-static KICKS: Lazy<Mutex<HashMap<SrsKickKey, (isize, isize)>>> =
-    Lazy::new(|| {
-        let mut m = HashMap::new();
-        m.insert(SrsKickKey(KickType::Standard, Rotation::N, 1), (-1, 0));
-        Mutex::new(m)
-    });
 
 impl SrsPlus {
-    fn into_array(
-        piece: PieceKind,
+    const KICK_COUNT: u8 = 4;
+
+    pub fn new(
+        piece_kind: PieceKind,
         rotation: Rotation,
         rotate_kind: RotateKind,
-    ) -> Vec<Self> {
-        vec![Self::Kick1, Self::Kick2, Self::Kick3, Self::Kick4]
-    }
-
-    fn get_test_index(rotation: Rotation, rotate_kind: RotateKind) -> u8 {
-        match (rotation, rotate_kind) {
-            // N -> E | 0 -> 1
-            (Rotation::N, RotateKind::Clockwise) => todo!(),
-            (Rotation::N, RotateKind::CounterClockwise) => todo!(),
-
-            // N -> E | 0 -> 1
-            (Rotation::E, RotateKind::Clockwise) => todo!(),
-            (Rotation::E, RotateKind::CounterClockwise) => todo!(),
-
-            // N -> E | 0 -> 1
-            (Rotation::S, RotateKind::Clockwise) => todo!(),
-            (Rotation::S, RotateKind::CounterClockwise) => todo!(),
-
-            // N -> E | 0 -> 1
-            (Rotation::W, RotateKind::Clockwise) => todo!(),
-            (Rotation::W, RotateKind::CounterClockwise) => todo!(),
+    ) -> Self {
+        Self {
+            piece_kind,
+            rotation,
+            rotate_kind,
         }
     }
 
-    fn kick1(piece: PieceKind, rotation: Rotation, rotate_kind: RotateKind) {}
+    pub fn get_kicks(&self) -> Vec<Offset> {
+        match self.piece_kind {
+            PieceKind::I => self.get_i_kicks(),
+            _ => self.get_std_kicks(),
+        }
+    }
+
+    fn get_std_kicks(&self) -> Vec<Offset> {
+        let mut modifier = 1;
+        let mut rotation = self.rotation;
+
+        if let RotateKind::CounterClockwise = self.rotate_kind {
+            modifier = -1;
+            rotation = rotation + self.rotate_kind;
+        }
+
+        let mut kicks = Vec::with_capacity(Self::KICK_COUNT as usize);
+        let map = STD_KICKS.lock().unwrap();
+        for i in 0..Self::KICK_COUNT {
+            let key = StdMapKey(rotation, i);
+            let kick = map.get(&key).unwrap();
+            kicks.push(*kick * modifier);
+        }
+        kicks
+    }
+
+    fn get_i_kicks(&self) -> Vec<Offset> {
+        let mut kicks = Vec::with_capacity(Self::KICK_COUNT as usize);
+        let map = I_KICKS.lock().unwrap();
+        for i in 0..Self::KICK_COUNT {
+            let key = IMapKey(self.rotation, self.rotate_kind, i);
+            let kick = map.get(&key).unwrap();
+            kicks.push(*kick);
+        }
+        kicks
+    }
 }
 
-impl Kick for SrsPlus {
-    fn offset(&self) -> Offset {
-        match self {
-            SrsPlus::Kick1 => todo!(),
-            SrsPlus::Kick2 => todo!(),
-            SrsPlus::Kick3 => todo!(),
-            SrsPlus::Kick4 => todo!(),
-        }
+#[cfg(test)]
+mod test {
+    use super::{PieceKind::*, RotateKind::*, Rotation::*, *};
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(SrsPlus::new(J, N, Clockwise),
+            vec![
+                Offset::new(-1, 0),
+                Offset::new(-1, 1),
+                Offset::new(0, -2),
+                Offset::new(-1, -2),
+            ])]
+    #[case(SrsPlus::new(J, E, CounterClockwise),
+            vec![
+                Offset::new(1, 0),
+                Offset::new(1, -1),
+                Offset::new(0, 2),
+                Offset::new(1, 2),
+            ])]
+    fn test_std_kicks(
+        #[case] srs_plus: SrsPlus,
+        #[case] expected: Vec<Offset>,
+    ) {
+        assert_eq!(srs_plus.get_kicks(), expected);
     }
 }

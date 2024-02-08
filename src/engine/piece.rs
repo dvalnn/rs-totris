@@ -4,11 +4,29 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[rustfmt::skip]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RotateKind { Clockwise, CounterClockwise }
 
+impl std::ops::Add<RotateKind> for Rotation {
+    type Output = Self;
+
+    fn add(self, kind: RotateKind) -> Self::Output {
+        let index = Rotation::iter()
+            .position(|dir| dir == self)
+            .expect("invalid rotation");
+
+        Rotation::iter()
+            .cycle()
+            .nth(match kind {
+                RotateKind::Clockwise => index + 1,
+                RotateKind::CounterClockwise => index + 3,
+            })
+            .expect("invalid rotation")
+    }
+}
+
 #[rustfmt::skip]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumIter)]
 pub enum Rotation { N, E, S, W }
 
 impl Rotation {
@@ -107,20 +125,7 @@ impl Piece {
     }
 
     pub(super) fn rotated_by(&self, kind: RotateKind) -> Self {
-        let index = Rotation::iter()
-            .position(|dir| dir == self.rotation)
-            .expect("invalid rotation");
-
-        let index = match kind {
-            RotateKind::Clockwise => index + 1,
-            RotateKind::CounterClockwise => index + 3,
-        };
-
-        let rotation = Rotation::iter()
-            .cycle()
-            .nth(index)
-            .expect("invalid rotation");
-
+        let rotation = self.rotation + kind;
         Self { rotation, ..*self }
     }
 
