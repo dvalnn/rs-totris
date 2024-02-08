@@ -2,7 +2,7 @@ mod timing;
 
 use std::time::Duration;
 
-use crate::engine::{Engine, MoveKind, RotateKind};
+use crate::engine::{kick_tables::SrsPlus, Engine, MoveKind, RotateKind};
 
 pub use self::timing::{DeltaTime, Timer};
 
@@ -96,9 +96,19 @@ impl Game {
         }
     }
 
-    fn rotate_cursor(&mut self, kind: RotateKind) {
-        self.lock_reset = true;
-        let _ = self.engine.rotate_cursor(kind);
+    fn rotate_cursor(&mut self, rotation: RotateKind) {
+        // let kick = SrsPlus::Kick1(
+        //     self.engine.cursor_kind(),
+        //     self.engine.cursor_rotation(),
+        //     rotation,
+        // );
+        //
+        let kick = SrsPlus::Kick1;
+
+        match self.engine.rotate_cursor(rotation, Some(kick)) {
+            Ok(_) => self.lock_reset = true,
+            Err(_) => todo!(),
+        }
     }
 
     pub fn handle_input(&mut self, InputAction { input, action }: InputAction) {

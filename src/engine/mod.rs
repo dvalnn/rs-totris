@@ -2,15 +2,17 @@ mod geometry;
 mod matrix;
 mod piece;
 
+pub mod kick_tables;
+
 use std::{option::Option, time::Duration};
 
 use cgmath::EuclideanSpace;
 
-use self::piece::{Kind as PieceKind, Piece};
+use self::{kick_tables::Kick, piece::Piece};
 
 pub use self::{
     matrix::{CellIter, Color, Matrix},
-    piece::RotateKind,
+    piece::{Kind as PieceKind, RotateKind},
 };
 
 pub type Coordinate = cgmath::Point2<usize>;
@@ -73,9 +75,16 @@ impl Engine {
         self.ticked_down_cursor().is_none()
     }
 
-    pub fn rotate_cursor(&mut self, kind: RotateKind) -> Result<(), ()> {
+    pub fn rotate_cursor(
+        &mut self,
+        kind: RotateKind,
+        kick: Option<impl Kick>,
+    ) -> Result<(), ()> {
         let cursor = self.cursor.as_mut().ok_or(())?;
-        let new_cursor = cursor.rotated_by(kind);
+        let mut new_cursor = cursor.rotated_by(kind);
+        if let Some(kick) = kick {
+            new_cursor = new_cursor.moved_by(kick.offset());
+        }
         match self.matrix.is_clipping(&new_cursor) {
             true => Err(()),
             false => {
@@ -180,5 +189,13 @@ impl Engine {
         let cursor = self.cursor?;
         let new_cursor = cursor.moved_by(Offset::new(0, -1));
         (!self.matrix.is_clipping(&new_cursor)).then_some(new_cursor)
+    }
+
+    pub(crate) fn cursor_kind(&self) -> PieceKind {
+        todo!()
+    }
+
+    pub(crate) fn cursor_rotation(&self) -> piece::Rotation {
+        todo!()
     }
 }

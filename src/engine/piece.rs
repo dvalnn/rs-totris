@@ -8,8 +8,8 @@ use strum_macros::EnumIter;
 pub enum RotateKind { Clockwise, CounterClockwise }
 
 #[rustfmt::skip]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter)]
-pub(super) enum Rotation { N, E, S, W }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, Hash)]
+pub enum Rotation { N, E, S, W }
 
 impl Rotation {
     fn i_offset(&self) -> Offset {
@@ -37,7 +37,7 @@ impl std::ops::Mul<Rotation> for Offset {
 
 #[rustfmt::skip]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Kind { I, O, T, S, Z, J, L }
+pub enum Kind { I, O, T, S, Z, J, L }
 
 impl Kind {
     const KIND_COUNT: usize = 7;
