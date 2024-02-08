@@ -21,7 +21,8 @@ pub use crate::engine::{MoveKind, RotateKind};
 
 const WINDOW_INIT_SIZE: Vector2<u32> = Vector2::new(1024, 1024);
 const BACKGROUND_COLOR: Color = Color::RGB(0x10, 0x10, 0x18);
-const PLACEHOLDER: Color = Color::RGB(0x66, 0x77, 0x77);
+const GRID_COLOR: Color = Color::WHITE;
+const PLACEHOLDER_COLOR: Color = Color::RGB(0x66, 0x77, 0x77);
 
 impl TryFrom<Keycode> for Input {
     type Error = ();
@@ -145,7 +146,8 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
         .sub_rect((0.25, 11.0 / 16.0), Some((Align::Near, Align::Far)))
         .sub_rect((7.0 / 8.0, 8.0 / 11.0), Some((Align::Center, Align::Near)));
 
-    canvas.set_draw_color(PLACEHOLDER);
+    // NOTE: UI drawing
+    canvas.set_draw_color(PLACEHOLDER_COLOR);
     for sub_rect in &[matrix, up_next, hold, queue, score] {
         canvas
             .fill_rect(Rect::from(sub_rect))
@@ -159,12 +161,13 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
     };
 
     for (coord, cell_color) in engine.cells() {
-        cell_ctx.try_draw_cell(coord, cell_color);
+        cell_ctx.try_draw_cell(coord, cell_color, true)
     }
 
     if let Some((cursor_cells, color)) = engine.cursor_info() {
         for coord in cursor_cells {
-            cell_ctx.draw_cell(coord, color);
+            cell_ctx.draw_cell(coord, color.screen_color(), false);
+            cell_ctx.draw_cell(coord, GRID_COLOR, true);
         }
     }
 
@@ -185,12 +188,15 @@ impl CellDrawContext<'_> {
         &mut self,
         coord: Coordinate,
         cell_color: Option<EngineColor>,
+        draw_wire_frame: bool,
     ) {
-        let Some(cell_color) = cell_color else {
-            return;
+        if let Some(cell_color) = cell_color {
+            self.draw_cell(coord, cell_color.screen_color(), false);
         };
 
-        self.draw_cell(coord, cell_color)
+        if draw_wire_frame {
+            self.draw_cell(coord, GRID_COLOR, true);
+        }
     }
 
     /// NOTE: We are using a coordinate system where Y increases upwards
@@ -198,7 +204,7 @@ impl CellDrawContext<'_> {
     ///       internal coordinate system.
     ///       In addition, we need to scale the coordinates to fit the
     ///       size (in pixels) of the ui matrix. This is important
-    fn draw_cell(&mut self, coord: Coordinate, color: EngineColor) {
+    fn draw_cell(&mut self, coord: Coordinate, color: Color, wire_frame: bool) {
         let coord = coord.to_vec().cast::<u32>().expect("Should be safe");
         let this = (coord + Vector2::new(0, 1))
             .mul_element_wise(self.dims)
@@ -215,13 +221,16 @@ impl CellDrawContext<'_> {
             this.y - next.y,
         );
 
-        self.canvas.set_draw_color(color.screen_color());
-        self.canvas
-            .fill_rect(cell_rect)
-            .expect("Fatal redering error");
-        self.canvas.set_draw_color(PLACEHOLDER);
-        self.canvas
-            .draw_rect(cell_rect)
-            .expect("Fatal redering error");
+        self.canvas.set_draw_color(color);
+
+        if wire_frame {
+            self.canvas
+                .draw_rect(cell_rect)
+                .expect("Fatal redering error");
+        } else {
+            self.canvas
+                .fill_rect(cell_rect)
+                .expect("Fatal redering error");
+        }
     }
 }
