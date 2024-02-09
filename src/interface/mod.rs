@@ -1,6 +1,8 @@
 mod render_traits;
 mod sub_rect;
 
+use std::isize;
+
 use cgmath::{ElementWise, EuclideanSpace, Point2, Vector2};
 use sdl2::{
     event::Event, keyboard::Keycode, pixels::Color, rect::Rect, render::Canvas,
@@ -8,7 +10,7 @@ use sdl2::{
 };
 
 use crate::{
-    engine::{Color as EngineColor, Coordinate, Engine, Matrix},
+    engine::{Color as EngineColor, Coordinate, Engine, Matrix, Offset},
     game::{DeltaTime, Game, Input, InputAction, KeyAction},
 };
 
@@ -27,14 +29,15 @@ const PLACEHOLDER_COLOR: Color = Color::RGB(0x66, 0x77, 0x77);
 impl TryFrom<Keycode> for Input {
     type Error = ();
     fn try_from(key: Keycode) -> Result<Self, Self::Error> {
+        use Input::*;
         Ok(match key {
-            Keycode::Right => Input::Move(MoveKind::Right),
-            Keycode::Left => Input::Move(MoveKind::Left),
-            Keycode::Down => Input::SoftDrop,
-            Keycode::Space => Input::HardDrop,
-            Keycode::Z => Input::Rotate(RotateKind::CounterClockwise),
-            Keycode::X => Input::Rotate(RotateKind::Clockwise),
-            Keycode::C => Input::Hold,
+            Keycode::Right => Move(MoveKind::Right),
+            Keycode::Left => Move(MoveKind::Left),
+            Keycode::Down => SoftDrop,
+            Keycode::Space => HardDrop,
+            Keycode::Z => Rotate(RotateKind::CounterClockwise),
+            Keycode::X => Rotate(RotateKind::Clockwise),
+            Keycode::C => Hold,
             Keycode::Escape => todo!("Pause"),
 
             _ => return Err(()),
@@ -155,35 +158,32 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
             .expect("Fatal redering error");
     }
 
-    let mut cell_ctx = CellDrawContext {
-        origin: matrix.bottom_left(),
-        dims: matrix.size(),
-        canvas,
-    };
+    //NOTE: Matrix content rendering
+    {
+        let mut cell_ctx = CellDrawContext {
+            origin: matrix.bottom_left(),
+            dims: matrix.size(),
+            canvas,
+        };
 
-    for (coord, cell_color) in engine.cells() {
-        cell_ctx.try_draw_cell(coord, cell_color, true)
-    }
+        for (coord, cell_color) in engine.cells() {
+            cell_ctx.try_draw_cell(coord, cell_color, true)
+        }
 
-    if let Some((cursor_cells, color, _, _)) = engine.cursor_info() {
-        for coord in cursor_cells {
-            cell_ctx.draw_cell(coord, color.screen_color(), false);
-            cell_ctx.draw_cell(coord, GRID_COLOR, true);
+        if let Some((cursor_cells, color, _, _)) = engine.cursor_info() {
+            for coord in cursor_cells {
+                cell_ctx.draw_cell(coord, color.screen_color(), false);
+                cell_ctx.draw_cell(coord, GRID_COLOR, true);
+            }
         }
     }
 
-    // let mut cell_ctx = CellDrawContext {
-    //     origin: hold.bottom_left(),
-    //     dims: hold.size(),
-    //     canvas,
-    // };
-    //
-    // if let Some((cursor_cells, color)) = engine.held_cursor_info() {
-    //     for coord in cursor_cells {
-    //         cell_ctx.draw_cell(coord, color.screen_color(), false);
-    //         cell_ctx.draw_cell(coord, GRID_COLOR, true);
-    //     }
-    // }
+    //NOTE: Hold piece rendering
+    {
+        if let Some((coords, color)) = engine.held_cursor_info() {
+            todo!("draw held piece")
+        }
+    }
 
     canvas.present();
 }
