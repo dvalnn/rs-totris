@@ -164,7 +164,7 @@ impl Engine {
     }
 
     pub(crate) fn hold_cursor(&mut self) {
-        let cursor = self.cursor.take().expect("No cursor");
+        let cursor = self.cursor.take().expect("No cursor").reset();
         if self.held_cursor.is_none() {
             self.held_cursor = Some(cursor);
             self.add_cursor();

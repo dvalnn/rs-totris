@@ -10,7 +10,7 @@ use super::{geometry::GridIncrement, piece::Piece, Coordinate};
 pub enum Color { Yellow, Cyan, Purple, Orange, Blue, Green, Red, }
 
 type Cell = Option<Color>;
-pub struct Matrix(pub(super) [Option<Color>; Matrix::SIZE]);
+pub struct Matrix(pub(super) [Cell; Matrix::SIZE]);
 
 impl Matrix {
     pub const WIDTH: usize = 10;
@@ -71,13 +71,13 @@ impl Matrix {
         x + y * Self::WIDTH
     }
 
-    fn lines(&self) -> ArrayChunks<'_, Option<Color>, { Self::WIDTH }> {
+    fn lines(&self) -> ArrayChunks<'_, Cell, { Self::WIDTH }> {
         self.0.array_chunks()
     }
 }
 
 impl Index<Coordinate> for Matrix {
-    type Output = Option<Color>;
+    type Output = Cell;
 
     fn index(&self, index: Coordinate) -> &Self::Output {
         assert!(Self::on_matrix(index));
@@ -94,11 +94,11 @@ impl IndexMut<Coordinate> for Matrix {
 
 pub struct CellIter<'matrix> {
     pub(super) position: Coordinate,
-    pub(super) cells: std::slice::Iter<'matrix, Option<Color>>,
+    pub(super) cells: std::slice::Iter<'matrix, Cell>,
 }
 
 impl<'matrix> Iterator for CellIter<'matrix> {
-    type Item = (Coordinate, Option<Color>);
+    type Item = (Coordinate, Cell);
 
     fn next(&mut self) -> Option<Self::Item> {
         let &cell = self.cells.next()?;

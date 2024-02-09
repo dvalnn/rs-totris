@@ -127,6 +127,7 @@ impl Game {
         }
 
         self.engine.hold_cursor();
+        self.hold_available = false;
     }
 
     pub fn handle_input(&mut self, InputAction { input, action }: InputAction) {
@@ -145,7 +146,8 @@ impl Game {
             (SoftDrop, Press) => self.soft_drop = true,
             (SoftDrop, Release) => self.soft_drop = false,
 
-            (Hold, _) => self.hold_cursor(),
+            (Hold, Press) => self.hold_cursor(),
+            (Hold, Release) => {}
         }
     }
 
@@ -221,6 +223,7 @@ impl Game {
             //TODO: change this funtion to return the cleared
             //      lines indices
             self.engine.line_clear(|_| (/*canvas animation*/));
+            self.hold_available = true;
         }
     }
 }

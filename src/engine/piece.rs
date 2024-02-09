@@ -129,6 +129,10 @@ impl Piece {
         Self { rotation, ..*self }
     }
 
+    pub(super) fn reset(self) -> Self {
+        Self::new(self.kind)
+    }
+
     /// Returns the cells of this [`Piece`].
     /// If the piece is out of bounds, `None` is returned.
     pub(super) fn cells(&self) -> Option<Vec<Coordinate>> {
