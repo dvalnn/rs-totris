@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 #![feature(array_chunks, is_sorted)]
 
 mod engine;

@@ -140,6 +140,10 @@ impl Piece {
             .collect::<Option<Vec<_>>>()
     }
 
+    pub(super) fn default_cells(&self) -> Vec<Offset> {
+        self.kind.cells().into_iter().collect()
+    }
+
     fn rotator(&self) -> impl Fn(Offset) -> Offset + '_ {
         move |offset| match self.kind {
             Kind::O => offset,

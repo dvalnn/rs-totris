@@ -34,6 +34,7 @@ impl TryFrom<Keycode> for Input {
             Keycode::Space => Input::HardDrop,
             Keycode::Z => Input::Rotate(RotateKind::CounterClockwise),
             Keycode::X => Input::Rotate(RotateKind::Clockwise),
+            Keycode::C => Input::Hold,
             Keycode::Escape => todo!("Pause"),
 
             _ => return Err(()),
@@ -164,12 +165,25 @@ fn draw(canvas: &mut Canvas<Window>, engine: &Engine) {
         cell_ctx.try_draw_cell(coord, cell_color, true)
     }
 
-    if let Some((cursor_cells, color)) = engine.cursor_info() {
+    if let Some((cursor_cells, color, _, _)) = engine.cursor_info() {
         for coord in cursor_cells {
             cell_ctx.draw_cell(coord, color.screen_color(), false);
             cell_ctx.draw_cell(coord, GRID_COLOR, true);
         }
     }
+
+    // let mut cell_ctx = CellDrawContext {
+    //     origin: hold.bottom_left(),
+    //     dims: hold.size(),
+    //     canvas,
+    // };
+    //
+    // if let Some((cursor_cells, color)) = engine.held_cursor_info() {
+    //     for coord in cursor_cells {
+    //         cell_ctx.draw_cell(coord, color.screen_color(), false);
+    //         cell_ctx.draw_cell(coord, GRID_COLOR, true);
+    //     }
+    // }
 
     canvas.present();
 }

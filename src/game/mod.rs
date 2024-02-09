@@ -30,6 +30,7 @@ pub enum Input {
     Move(MoveKind),
     HardDrop,
     SoftDrop,
+    Hold,
 }
 
 #[derive(Default)]
@@ -41,9 +42,9 @@ pub struct Game {
     tick_timer: Timer,
     fast_timer: Timer,
     lock_timer: Timer,
+    move_repeat_timer: Timer,
 
     repeat_move: bool,
-    move_repeat_timer: Timer,
 
     prev_move: Option<MoveKind>,
     current_move: Option<MoveKind>,
@@ -53,6 +54,8 @@ pub struct Game {
 
     hard_drop: bool,
     soft_drop: bool,
+
+    hold_available: bool,
 }
 
 impl Game {
@@ -67,6 +70,7 @@ impl Game {
             engine,
             lock_timer: Timer::new(Self::LOCK_TIME),
             lock_moves: Self::LOCK_MOVES,
+            hold_available: true,
             ..Default::default()
         }
     }
@@ -96,29 +100,33 @@ impl Game {
         }
     }
 
-    // TODO: Have this return if the rotation was successful
-    fn rotate_cursor(&mut self, rotate_kind: RotateKind) {
-        let kick_table = SrsPlus::new(
-            self.engine.cursor_kind(),
-            self.engine.cursor_rotation(),
-            rotate_kind,
-        );
-
-        match self.engine.rotate_cursor(rotate_kind, None) {
-            Ok(_) => self.lock_reset = true,
-            Err(_) => {
-                for kick in kick_table.get_kicks() {
-                    if self
-                        .engine
-                        .rotate_cursor(rotate_kind, Some(kick))
-                        .is_ok()
-                    {
-                        self.lock_reset = true;
-                        break;
-                    }
-                }
+    fn cursor_kicks(&mut self, rotate_kind: RotateKind) {
+        let (_, _, kind, rotation) = self.engine.cursor_info().unwrap();
+        let kick_table = SrsPlus::new(kind, rotation, rotate_kind);
+        for kick in kick_table.get_kicks() {
+            if self.engine.rotate_cursor(rotate_kind, Some(kick)).is_ok() {
+                self.lock_reset = true;
+                break;
             }
         }
+    }
+
+    // TODO: Have this return if the rotation was successful
+    fn rotate_cursor(&mut self, rotate_kind: RotateKind) {
+        match self.engine.rotate_cursor(rotate_kind, None) {
+            Ok(_) => self.lock_reset = true,
+            //BUG: T Pieces are not kicking properly (T-Spins)
+            Err(_) => self.cursor_kicks(rotate_kind),
+        }
+    }
+
+    //TODO: return Result<(), ()>
+    fn hold_cursor(&mut self) {
+        if !self.hold_available {
+            return;
+        }
+
+        self.engine.hold_cursor();
     }
 
     pub fn handle_input(&mut self, InputAction { input, action }: InputAction) {
@@ -136,6 +144,8 @@ impl Game {
 
             (SoftDrop, Press) => self.soft_drop = true,
             (SoftDrop, Release) => self.soft_drop = false,
+
+            (Hold, _) => self.hold_cursor(),
         }
     }
 
